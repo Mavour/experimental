@@ -45,10 +45,12 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
       const activeModel = model || DEFAULT_MODEL;
 
       // Retry up to 3 times on transient provider errors (502, 503, 529)
+      const FALLBACK_MODEL = "stepfun/step-3.5-flash:free";
       let response;
+      let usedModel = activeModel;
       for (let attempt = 0; attempt < 3; attempt++) {
         response = await client.chat.completions.create({
-          model: activeModel,
+          model: usedModel,
           messages,
           tools,
           tool_choice: "auto",
@@ -59,10 +61,15 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
         const errCode = response.error?.code;
         if (errCode === 502 || errCode === 503 || errCode === 529) {
           const wait = (attempt + 1) * 5000;
-          log("agent", `Provider error ${errCode}, retrying in ${wait / 1000}s (attempt ${attempt + 1}/3)`);
-          await new Promise((r) => setTimeout(r, wait));
+          if (attempt === 1 && usedModel !== FALLBACK_MODEL) {
+            usedModel = FALLBACK_MODEL;
+            log("agent", `Switching to fallback model ${FALLBACK_MODEL}`);
+          } else {
+            log("agent", `Provider error ${errCode}, retrying in ${wait / 1000}s (attempt ${attempt + 1}/3)`);
+            await new Promise((r) => setTimeout(r, wait));
+          }
         } else {
-          break; // non-retryable error
+          break;
         }
       }
 

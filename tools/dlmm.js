@@ -479,6 +479,76 @@ export async function getMyPositions({ force = false } = {}) {
   return _positionsInflight;
 }
 
+// ─── Get Positions for Any Wallet ─────────────────────────────
+export async function getWalletPositions({ wallet_address }) {
+  try {
+    const walletPubkey = new PublicKey(wallet_address);
+    const DLMM_PROGRAM = new PublicKey("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo");
+
+    const accounts = await getConnection().getProgramAccounts(DLMM_PROGRAM, {
+      filters: [{ memcmp: { offset: 40, bytes: walletPubkey.toBase58() } }],
+    });
+
+    if (accounts.length === 0) {
+      return { wallet: wallet_address, total_positions: 0, positions: [] };
+    }
+
+    const raw = accounts.map((acc) => ({
+      position: acc.pubkey.toBase58(),
+      pool: new PublicKey(acc.account.data.slice(8, 40)).toBase58(),
+    }));
+
+    // Enrich with PnL API
+    const uniquePools = [...new Set(raw.map((r) => r.pool))];
+    const pnlMaps = await Promise.all(uniquePools.map((pool) => fetchDlmmPnlForPool(pool, wallet_address)));
+    const pnlByPool = {};
+    uniquePools.forEach((pool, i) => { pnlByPool[pool] = pnlMaps[i]; });
+
+    // SDK fallback for anything the API missed
+    const missing = raw.filter((r) => !pnlByPool[r.pool]?.[r.position]);
+    const sdkFallbacks = {};
+    if (missing.length > 0) {
+      await Promise.all(missing.map(async (r) => {
+        const fb = await fetchPositionSdkFallback(r.pool, r.position, walletPubkey);
+        if (fb) sdkFallbacks[r.position] = fb;
+      }));
+    }
+
+    const positions = raw.map((r) => {
+      const p  = pnlByPool[r.pool]?.[r.position] || null;
+      const fb = sdkFallbacks[r.position] || null;
+
+      const inRange    = p ? !p.isOutOfRange : (fb ? !fb.isOutOfRange : null);
+      const lowerBin   = p?.lowerBinId      ?? fb?.lowerBinId      ?? null;
+      const upperBin   = p?.upperBinId      ?? fb?.upperBinId      ?? null;
+      const activeBin  = p?.poolActiveBinId ?? fb?.poolActiveBinId ?? null;
+      const unclaimedFees = p
+        ? (parseFloat(p.unrealizedPnl?.unclaimedFeeTokenX || 0) + parseFloat(p.unrealizedPnl?.unclaimedFeeTokenY || 0))
+        : (fb?.unclaimedFeeUsd ?? 0);
+
+      return {
+        position:          r.position,
+        pool:              r.pool,
+        lower_bin:         lowerBin,
+        upper_bin:         upperBin,
+        active_bin:        activeBin,
+        in_range:          inRange,
+        unclaimed_fees_usd: Math.round(unclaimedFees * 100) / 100,
+        total_value_usd:   Math.round((p ? parseFloat(p.unrealizedPnl?.balances || 0) : 0) * 100) / 100,
+        pnl_usd:           Math.round((p?.pnlUsd ?? 0) * 100) / 100,
+        pnl_pct:           Math.round((p?.pnlPctChange ?? 0) * 100) / 100,
+        age_minutes:       p?.createdAt ? Math.floor((Date.now() - p.createdAt * 1000) / 60000) : null,
+        source:            p ? "api" : (fb ? "sdk_fallback" : "unknown"),
+      };
+    });
+
+    return { wallet: wallet_address, total_positions: positions.length, positions };
+  } catch (error) {
+    log("wallet_positions_error", error.message);
+    return { wallet: wallet_address, total_positions: 0, positions: [], error: error.message };
+  }
+}
+
 // ─── Claim Fees ────────────────────────────────────────────────
 export async function claimFees({ position_address }) {
   if (process.env.DRY_RUN === "true") {

@@ -269,6 +269,29 @@ WARNING: This executes a real on-chain transaction. Cannot be undone.`,
     }
   },
 
+  {
+    type: "function",
+    function: {
+      name: "get_wallet_positions",
+      description: `Get all open DLMM positions for any Solana wallet address.
+Use this when the user asks about another wallet's positions, wants to monitor a wallet,
+or wants to copy/compare positions.
+
+Returns the same structure as get_my_positions but for the given wallet:
+position address, pool, bin range, in-range status, unclaimed fees, PnL, age.`,
+      parameters: {
+        type: "object",
+        properties: {
+          wallet_address: {
+            type: "string",
+            description: "The Solana wallet address (base58 public key) to check"
+          }
+        },
+        required: ["wallet_address"]
+      }
+    }
+  },
+
   // ═══════════════════════════════════════════
   //  WALLET TOOLS
   // ═══════════════════════════════════════════

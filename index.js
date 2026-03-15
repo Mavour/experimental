@@ -50,7 +50,8 @@ function buildPrompt() {
 //  CRON DEFINITIONS
 // ═══════════════════════════════════════════
 let _cronTasks = [];
-let _autonomousBusy = false; // prevents overlapping cycles
+let _managementBusy = false; // prevents overlapping management cycles
+let _screeningBusy = false;  // prevents overlapping screening cycles
 
 function stopCronJobs() {
   for (const task of _cronTasks) task.stop();
@@ -61,8 +62,8 @@ function startCronJobs() {
   stopCronJobs(); // stop any running tasks before (re)starting
 
   const mgmtTask = cron.schedule(`*/${Math.max(1, config.schedule.managementIntervalMin)} * * * *`, async () => {
-    if (_autonomousBusy || busy) return;
-    _autonomousBusy = true;
+    if (_managementBusy || busy) return;
+    _managementBusy = true;
     timers.managementLastRun = Date.now();
     log("cron", "Starting management cycle");
     let mgmtReport = null;
@@ -89,7 +90,7 @@ REPORT FORMAT (Strictly follow this for each position):
       log("cron_error", `Management cycle failed: ${error.message}`);
       mgmtReport = `Management cycle failed: ${error.message}`;
     } finally {
-      _autonomousBusy = false;
+      _managementBusy = false;
       if (telegramEnabled()) {
         if (mgmtReport) sendMessage(`🔄 Management Cycle\n\n${mgmtReport}`).catch(() => {});
         const pos = await getMyPositions().catch(() => null);
@@ -103,8 +104,8 @@ REPORT FORMAT (Strictly follow this for each position):
   });
 
   const screenTask = cron.schedule(`*/${Math.max(1, config.schedule.screeningIntervalMin)} * * * *`, async () => {
-    if (_autonomousBusy || busy) return;
-    _autonomousBusy = true;
+    if (_screeningBusy || busy) return;
+    _screeningBusy = true;
     timers.screeningLastRun = Date.now();
     log("cron", "Starting screening cycle");
     let screenReport = null;
@@ -123,7 +124,7 @@ SCREENING CYCLE — DEPLOY ONLY
       log("cron_error", `Screening cycle failed: ${error.message}`);
       screenReport = `Screening cycle failed: ${error.message}`;
     } finally {
-      _autonomousBusy = false;
+      _screeningBusy = false;
       if (telegramEnabled()) {
         if (screenReport) sendMessage(`🔍 Screening Cycle\n\n${screenReport}`).catch(() => {});
       }
@@ -131,8 +132,8 @@ SCREENING CYCLE — DEPLOY ONLY
   });
 
   const healthTask = cron.schedule(`0 * * * *`, async () => {
-    if (_autonomousBusy || busy) return;
-    _autonomousBusy = true;
+    if (_managementBusy || busy) return;
+    _managementBusy = true;
     log("cron", "Starting health check");
     try {
       await agentLoop(`
@@ -143,7 +144,7 @@ Summarize the current portfolio health, total fees earned, and performance of al
     } catch (error) {
       log("cron_error", `Health check failed: ${error.message}`);
     } finally {
-      _autonomousBusy = false;
+      _managementBusy = false;
     }
   });
 
@@ -304,7 +305,7 @@ if (isTTY) {
 
   // Telegram bot
   startPolling(async (text) => {
-    if (_autonomousBusy || busy) {
+    if (_managementBusy || _screeningBusy || busy) {
       sendMessage("Agent is busy right now — try again in a moment.").catch(() => {});
       return;
     }

@@ -366,8 +366,8 @@ Examples:
 - { maxTvl: 50000 }              — tighter TVL cap
 - { binsBelow: 50 }              — narrower bin range
 - { maxPositions: 5 }            — allow more concurrent positions
-
-Note: LLM settings (model, temperature, etc.) are NOT changeable — those are owner-only.
+- { managementModel: "openrouter/healer-alpha" }  — switch management cycle model
+- { screeningModel: "openrouter/healer-alpha" }   — switch screening cycle model
 
 Always provide a reason. This is logged as a lesson and visible in future cycles.`,
       parameters: {

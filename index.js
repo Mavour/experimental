@@ -62,7 +62,7 @@ function startCronJobs() {
   stopCronJobs(); // stop any running tasks before (re)starting
 
   const mgmtTask = cron.schedule(`*/${Math.max(1, config.schedule.managementIntervalMin)} * * * *`, async () => {
-    if (_managementBusy || busy) return;
+    if (_managementBusy) return;
     _managementBusy = true;
     timers.managementLastRun = Date.now();
     log("cron", `Starting management cycle [model: ${config.llm.managementModel}]`);
@@ -74,8 +74,9 @@ MANAGEMENT CYCLE
 1. get_my_positions — check all open positions.
 2. For each position:
    - Call get_position_pnl.
-   - Check state summary for any position instruction (e.g. "hold until 5% profit").
-   - INSTRUCTION OVERRIDE: If a position has an instruction, it OVERRIDES all other logic. Do NOT close unless the instruction condition is met.
+   - Check state summary for any position instruction (e.g. "close at 5% profit").
+   - INSTRUCTION OVERRIDE: If instruction condition IS MET → close immediately, no further analysis.
+   - INSTRUCTION OVERRIDE: If instruction condition NOT YET MET → hold, regardless of other signals.
    - If no instruction: BIAS = STAY. Only close if yield died, pool collapsed, or extreme loss.
 3. If closing: swap base tokens to SOL.
 
@@ -104,7 +105,7 @@ REPORT FORMAT (Strictly follow this for each position):
   });
 
   const screenTask = cron.schedule(`*/${Math.max(1, config.schedule.screeningIntervalMin)} * * * *`, async () => {
-    if (_screeningBusy || busy) return;
+    if (_screeningBusy) return;
 
     // Hard guards — don't even run the agent if preconditions aren't met
     try {
@@ -150,7 +151,7 @@ SCREENING CYCLE — DEPLOY ONLY
   });
 
   const healthTask = cron.schedule(`0 * * * *`, async () => {
-    if (_managementBusy || busy) return;
+    if (_managementBusy) return;
     _managementBusy = true;
     log("cron", "Starting health check");
     try {
@@ -177,7 +178,7 @@ Summarize the current portfolio health, total fees earned, and performance of al
     } catch (error) {
       log("cron_error", `Morning briefing failed: ${error.message}`);
     }
-  });
+  }, { timezone: 'UTC' });
 
   _cronTasks = [mgmtTask, screenTask, healthTask, briefingTask];
   log("cron", `Cycles started — management every ${config.schedule.managementIntervalMin}m, screening every ${config.schedule.screeningIntervalMin}m`);

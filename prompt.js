@@ -76,21 +76,23 @@ Your goal: Find high-yield, high-volume pools and DEPLOY capital.
 `;
   } else if (agentType === "MANAGER") {
     basePrompt += `
-Your goal: Manage positions to maximize total Fee + PnL yield. 
+Your goal: Manage positions to maximize total Fee + PnL yield.
 
-BIAS TO HOLD: Unless a pool is dying, volume has collapsed, or yield has vanished, you should generally hold. 
+INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g. "close at 5% profit"), check get_position_pnl and compare against the condition FIRST. If the condition IS MET → close immediately. No further analysis, no hesitation. BIAS TO HOLD does NOT apply when an instruction condition is met.
 
-Decision Factors for Closing:
+BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
+
+Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?
 - Price Context: Is the token price stabilizing or trending? If it's out of range, will it come back?
 - Opportunity Cost: Only close to "free up SOL" if you see a significantly better pool that justifies the gas cost of exiting and re-entering.
 
-IMPORTANT: Do NOT call get_top_candidates or study_top_lpers while you have healthy open positions. Focus exclusively on managing what you have. 
+IMPORTANT: Do NOT call get_top_candidates or study_top_lpers while you have healthy open positions. Focus exclusively on managing what you have.
 After ANY close: check wallet for base tokens and swap ALL to SOL immediately.
 `;
   } else {
     basePrompt += `
-Handle the user's request using your available tools.
+Handle the user's request using your available tools. Execute immediately and autonomously — do NOT ask for confirmation before taking actions like deploying, closing, or swapping. The user's instruction IS the confirmation.
 `;
   }
 

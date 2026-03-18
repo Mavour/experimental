@@ -164,28 +164,70 @@ export async function deployPosition({
     totalXLamports = new BN(Math.floor(finalAmountX * Math.pow(10, decimals)));
   }
 
+  const totalBins = activeBinsBelow + activeBinsAbove;
+  const isWideRange = totalBins > 69;
   const newPosition = Keypair.generate();
 
   log("deploy", `Pool: ${pool_address}`);
-  log("deploy", `Strategy: ${activeStrategy}, Bins: ${minBinId} to ${maxBinId} (${activeBinsBelow + activeBinsAbove} bins)`);
+  log("deploy", `Strategy: ${activeStrategy}, Bins: ${minBinId} to ${maxBinId} (${totalBins} bins${isWideRange ? " — WIDE RANGE" : ""})`);
   log("deploy", `Amount: ${finalAmountX} X, ${finalAmountY} Y`);
   log("deploy", `Position: ${newPosition.publicKey.toString()}`);
 
   try {
-    // initializePositionAndAddLiquidityByStrategy supports up to 1400 bins in a single position.
-    // For wide ranges (>70 bins) the SDK packs the liquidity into a single tx via addLiquidityByStrategy2.
-    // removeLiquidity may return an array of txs for wide ranges — already handled in closePosition.
-    const tx = await pool.initializePositionAndAddLiquidityByStrategy({
-      positionPubKey: newPosition.publicKey,
-      user: wallet.publicKey,
-      totalXAmount: totalXLamports,
-      totalYAmount: totalYLamports,
-      strategy: { maxBinId, minBinId, strategyType },
-      slippage: 1000, // 10% slippage in bps
-    });
+    const txHashes = [];
 
-    const txHash = await sendAndConfirmTransaction(getConnection(), tx, [wallet, newPosition]);
-    log("deploy", `SUCCESS tx: ${txHash}`);
+    if (isWideRange) {
+      // ── Wide Range Path (>69 bins) ─────────────────────────────────
+      // Solana limits inner instruction realloc to 10240 bytes, so we can't create
+      // a large position in a single initializePosition ix.
+      // Solution: createExtendedEmptyPosition (returns Transaction | Transaction[]),
+      //           then addLiquidityByStrategyChunkable (returns Transaction[]).
+
+      // Phase 1: Create empty position (may be multiple txs)
+      const createTxs = await pool.createExtendedEmptyPosition(
+        minBinId,
+        maxBinId,
+        newPosition.publicKey,
+        wallet.publicKey,
+      );
+      const createTxArray = Array.isArray(createTxs) ? createTxs : [createTxs];
+      for (let i = 0; i < createTxArray.length; i++) {
+        const signers = i === 0 ? [wallet, newPosition] : [wallet];
+        const txHash = await sendAndConfirmTransaction(getConnection(), createTxArray[i], signers);
+        txHashes.push(txHash);
+        log("deploy", `Create tx ${i + 1}/${createTxArray.length}: ${txHash}`);
+      }
+
+      // Phase 2: Add liquidity (may be multiple txs)
+      const addTxs = await pool.addLiquidityByStrategyChunkable({
+        positionPubKey: newPosition.publicKey,
+        user: wallet.publicKey,
+        totalXAmount: totalXLamports,
+        totalYAmount: totalYLamports,
+        strategy: { minBinId, maxBinId, strategyType },
+        slippage: 10, // 10%
+      });
+      const addTxArray = Array.isArray(addTxs) ? addTxs : [addTxs];
+      for (let i = 0; i < addTxArray.length; i++) {
+        const txHash = await sendAndConfirmTransaction(getConnection(), addTxArray[i], [wallet]);
+        txHashes.push(txHash);
+        log("deploy", `Add liquidity tx ${i + 1}/${addTxArray.length}: ${txHash}`);
+      }
+    } else {
+      // ── Standard Path (≤69 bins) ─────────────────────────────────
+      const tx = await pool.initializePositionAndAddLiquidityByStrategy({
+        positionPubKey: newPosition.publicKey,
+        user: wallet.publicKey,
+        totalXAmount: totalXLamports,
+        totalYAmount: totalYLamports,
+        strategy: { maxBinId, minBinId, strategyType },
+        slippage: 1000, // 10% in bps
+      });
+      const txHash = await sendAndConfirmTransaction(getConnection(), tx, [wallet, newPosition]);
+      txHashes.push(txHash);
+    }
+
+    log("deploy", `SUCCESS — ${txHashes.length} tx(s): ${txHashes[0]}`);
 
     _positionsCacheAt = 0;
     trackPosition({
@@ -210,9 +252,10 @@ export async function deployPosition({
       pool: pool_address,
       bin_range: { min: minBinId, max: maxBinId, active: activeBin.binId },
       strategy: activeStrategy,
+      wide_range: isWideRange,
       amount_x: finalAmountX,
       amount_y: finalAmountY,
-      tx: txHash,
+      txs: txHashes,
     };
   } catch (error) {
     log("deploy_error", error.message);

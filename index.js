@@ -105,13 +105,12 @@ function startCronJobs() {
       const { content } = await agentLoop(`
 MANAGEMENT CYCLE
 
-HARD CLOSE RULES (check in order, close immediately if triggered — no further analysis):
+HARD CLOSE RULES — from user-config, not suggestions, no exceptions:
 1. pnl_pct >= ${config.management.takeProfitFeePct}% → CLOSE (take profit)
-2. minutes_out_of_range >= ${config.management.outOfRangeWaitMinutes} → CLOSE (OOR timeout)
+2. minutes_out_of_range >= ${config.management.outOfRangeWaitMinutes}min → CLOSE (OOR timeout)
 3. Position instruction condition met → CLOSE immediately
-4. fee_active_tvl_ratio < 0.01% AND volume collapsed → CLOSE (yield dead)
-
-These rules come from user-config. They are not suggestions. Do not override with BIAS TO HOLD.
+4. fee_active_tvl_ratio < ${config.screening.minFeeActiveTvlRatio}% AND volume < $${config.screening.minVolume} → CLOSE (yield dead)
+5. pnl_pct <= -${config.management.emergencyPriceDropPct ?? 50}% → CLOSE (emergency stop loss)
 
 STEPS:
 1. get_my_positions — check all open positions.

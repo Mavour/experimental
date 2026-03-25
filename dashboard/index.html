@@ -1238,8 +1238,8 @@
             const countStatsEl = document.getElementById('openPositions');
             const valueStatsEl = document.getElementById('positionsValue');
 
-            countEl.textContent = openPositions.length;
-            countStatsEl.textContent = openPositions.length;
+            if (countEl) countEl.textContent = openPositions.length;
+            if (countStatsEl) countStatsEl.textContent = openPositions.length;
             
             const totalValue = openPositions.reduce((s, p) => s + (p.total_value_usd || 0), 0);
             const totalPnl = openPositions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
@@ -1470,8 +1470,10 @@
             // Update open positions count
             const openPosCount = openPositions.length;
             const openPosValue = openPositions.reduce((s, p) => s + (p.pnl?.current_value_usd || p.total_value_usd || 0), 0);
-            document.getElementById('openPositions').textContent = openPosCount;
-            document.getElementById('positionsValue').textContent = `$${openPosValue.toFixed(2)} total`;
+            const openPosEl = document.getElementById('openPositions');
+            const posValueEl = document.getElementById('positionsValue');
+            if (openPosEl) openPosEl.textContent = openPosCount;
+            if (posValueEl) posValueEl.textContent = `$${openPosValue.toFixed(2)} total`;
             avgEl.textContent = `${avgPnlPct >= 0 ? '+' : ''}${avgPnlPct.toFixed(2)}%`;
             avgEl.className = `stat-value ${avgPnlPct >= 0 ? 'positive' : 'negative'}`;
             document.getElementById('totalClosed').textContent = `${allPerformance.length} closed`;
@@ -1778,9 +1780,11 @@
             return m > 0 ? `${h}h ${m}m` : `${h}h`;
         }
 
-        loadData();
-        setInterval(loadData, 30000);
-        connectWebSocket();
+        (async () => {
+            await loadData();
+            setInterval(() => loadData(), 30000);
+            connectWebSocket();
+        })();
     </script>
 </body>
 </html>

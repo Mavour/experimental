@@ -1,10 +1,8 @@
-import DLMM from "@meteora-ag/dlmm";
-import { Zap } from "@meteora-ag/zap-sdk";
 import { PublicKey, Keypair, Connection } from "@solana/web3.js";
 import { wallet } from "./wallet.js";
 import { config } from "../config.js";
-import { getTrackedPosition } from "../state.js";
 import { log } from "../logger.js";
+import { getWalletPositions } from "./dlmm.js";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -15,32 +13,32 @@ export async function zapOut({ position_address, output_mint = SOL_MINT }) {
     log("zapout", `Zapping out position ${position_address} to ${output_mint}`);
 
     try {
-        const position = await DLMM.getPositionByAddress(connection, new PublicKey(position_address));
+        const positions = await getWalletPositions({});
+        const position = positions.find(p => p.position_address === position_address);
+        
         if (!position) {
             throw new Error(`Position ${position_address} not found`);
         }
 
-        const poolAddress = position.lbPair;
-        const dlmmPool = await DLMM.create(connection, poolAddress);
-
-        const zap = new Zap(connection);
-
-        const inputMint = position.tokenX.publicKey.toString() === SOL_MINT 
-            ? position.tokenY.publicKey.toString() 
-            : position.tokenX.publicKey.toString();
+        const inputMint = position.token_x === SOL_MINT ? position.token_y : position.token_x;
+        const lbPairAddress = new PublicKey(position.pool_address);
 
         log("zapout", `Input mint: ${inputMint}, Output mint: ${output_mint}`);
 
+        const { Zap } = await import("@meteora-ag/zap-sdk");
+        const BN = (await import("bn.js")).default;
+        const zap = new Zap(connection);
+
         const zapOutTx = await zap.zapOutThroughDlmm({
             user: user.publicKey,
-            lbPairAddress: poolAddress,
+            lbPairAddress: lbPairAddress,
             inputMint: new PublicKey(inputMint),
             outputMint: new PublicKey(output_mint),
-            inputTokenProgram: new PublicKey(inputMint === SOL_MINT ? "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" : "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-            outputTokenProgram: new PublicKey(SOL_MINT === output_mint ? "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" : "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-            amountIn: position.liquidityAmount,
-            minimumSwapAmountOut: new (require("bn.js"))(0),
-            maxSwapAmount: new (require("bn.js"))(0),
+            inputTokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+            outputTokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+            amountIn: new BN(position.liquidity),
+            minimumSwapAmountOut: new BN(0),
+            maxSwapAmount: new BN(0),
             percentageToZapOut: 100,
         });
 
@@ -57,7 +55,7 @@ export async function zapOut({ position_address, output_mint = SOL_MINT }) {
             success: true,
             tx: txHash,
             position: position_address,
-            pool: poolAddress.toString(),
+            pool: position.pool_address,
             input_mint: inputMint,
             output_mint: output_mint,
         };

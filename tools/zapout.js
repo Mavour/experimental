@@ -1,14 +1,12 @@
-import { PublicKey, Keypair, Connection } from "@solana/web3.js";
-import { wallet } from "./wallet.js";
-import { config } from "../config.js";
+import { PublicKey } from "@solana/web3.js";
 import { log } from "../logger.js";
-import { getWalletPositions } from "./dlmm.js";
+import { getWalletPositions, getWallet, getConnection } from "./dlmm.js";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export async function zapOut({ position_address, output_mint = SOL_MINT }) {
-    const connection = new Connection(config.rpcUrl, "confirmed");
-    const user = Keypair.fromSecretKey(new Uint8Array(wallet));
+    const connection = getConnection();
+    const user = getWallet();
 
     log("zapout", `Zapping out position ${position_address} to ${output_mint}`);
 

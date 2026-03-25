@@ -1328,6 +1328,7 @@
                     </div>
                     <div class="journal-tags" style="margin-top: 10px;">
                         <span class="tag ${rangeClass}">${inRange ? '✓ In Range' : '⚠ Out of Range'}</span>
+                        <span class="tag strategy">${p.strategy || 'spot'} strategy</span>
                         <span class="tag strategy">${totalBins} bins</span>
                         ${(p.pnl?.unclaimed_fee_usd || 0) > 0 ? `<span class="tag profit">Claim $${(p.pnl.unclaimed_fee_usd || 0).toFixed(2)}</span>` : ''}
                         ${(p.unclaimed_fees_usd || 0) > 0 ? `<span class="tag profit">Claim $${(p.unclaimed_fees_usd || 0).toFixed(2)}</span>` : ''}

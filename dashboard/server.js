@@ -127,6 +127,9 @@ async function fetchOpenPositions() {
                 if (statePos?.pool_name) {
                     p.pool_name = statePos.pool_name;
                 }
+                if (statePos?.strategy) {
+                    p.strategy = statePos.strategy;
+                }
                 
                 try {
                     const pnl = await getPositionPnl({ pool_address: p.pool, position_address: p.position });

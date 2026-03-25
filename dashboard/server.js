@@ -110,8 +110,23 @@ async function fetchOpenPositions() {
         if (!fs.existsSync(dlmmPath)) {
             return { positions: [], error: 'DLMM module not found' };
         }
-        const { getMyPositions } = await import(`file://${dlmmPath.replace(/\\/g, '/')}`);
-        return await getMyPositions({ force: true });
+        const { getMyPositions, getPositionPnl } = await import(`file://${dlmmPath.replace(/\\/g, '/')}`);
+        const result = await getMyPositions({ force: true });
+        
+        // Enrich with PnL data for bin info
+        if (result.positions && result.positions.length > 0) {
+            const enriched = await Promise.all(result.positions.map(async (p) => {
+                try {
+                    const pnl = await getPositionPnl({ pool_address: p.pool, position_address: p.position });
+                    return { ...p, pnl };
+                } catch {
+                    return p;
+                }
+            }));
+            result.positions = enriched;
+        }
+        
+        return result;
     } catch (e) {
         return { positions: [], error: e.message };
     }

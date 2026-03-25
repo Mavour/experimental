@@ -1718,7 +1718,7 @@
             container.innerHTML = poolKeys.map(addr => {
                 const pool = allPools[addr];
                 const winClass = (pool.win_rate || 0) >= 0.5 ? 'positive' : 'negative';
-                const totalPnl = (pool.total_pnl_usd || 0);
+                const totalPnl = (pool.deploys || []).reduce((s, d) => s + (d.pnl_usd || 0), 0);
                 const pnlClass = totalPnl >= 0 ? 'positive' : 'negative';
                 const wr = ((pool.win_rate || 0) * 100).toFixed(0);
                 const avgPnl = pool.avg_pnl_pct || 0;

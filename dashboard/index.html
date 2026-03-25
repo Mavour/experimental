@@ -1238,6 +1238,7 @@
             const countStatsEl = document.getElementById('openPositions');
             const valueStatsEl = document.getElementById('positionsValue');
 
+            console.log('renderPositions called, openPositions:', openPositions.length);
             if (countEl) countEl.textContent = openPositions.length;
             if (countStatsEl) countStatsEl.textContent = openPositions.length;
             
@@ -1446,6 +1447,7 @@
         }
 
         function renderStats() {
+            try {
             const totalPnl = allPerformance.reduce((s, p) => s + (p.pnl_usd || 0), 0);
             const avgPnlPct = allPerformance.length > 0 
                 ? allPerformance.reduce((s, p) => s + (p.pnl_pct || 0), 0) / allPerformance.length 
@@ -1479,7 +1481,10 @@
             document.getElementById('totalClosed').textContent = `${allPerformance.length} closed`;
 
             document.getElementById('avgEfficiency').textContent = `${avgEfficiency.toFixed(1)}%`;
-            document.getElementById('efficiencyBar').style.width = `${avgEfficiency}%`;
+            document.getElementById('avgEfficiency').style.width = `${avgEfficiency}%`;
+            } catch (e) {
+                console.error('renderStats error:', e);
+            }
         }
 
         function filterJournal(filter) {

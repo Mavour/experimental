@@ -974,7 +974,9 @@
 
                 const state = await stateRes.json();
                 allPerformance = state.performance || [];
-                allLessons = lessonsRes.ok ? (await lessonsRes.json()).lessons || [] : [];
+                const lessonsData = lessonsRes.ok ? await lessonsRes.json() : {};
+                allLessons = lessonsData.lessons || [];
+                allPerformance = lessonsData.performance || [];
                 allPools = poolRes.ok ? await poolRes.json() : {};
                 solPrice = priceRes.ok ? (await priceRes.json()).solana?.usd || 0 : 0;
                 const candidateData = await candidateRes.json();

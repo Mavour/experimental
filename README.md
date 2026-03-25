@@ -167,6 +167,76 @@ You can also chat with the agent via Telegram using the same free-form interface
 
 ---
 
+---
+
+## Dashboard (Real-time Monitoring)
+
+Track your bot's performance with a beautiful web dashboard accessible from any device.
+
+### Features
+- **Live wallet balance** - SOL, tokens, total USD value
+- **Active positions** - with range bar visualization
+- **Performance stats** - Win rate, P&L, range efficiency
+- **Daily journal** - history of closed positions
+- **Lessons learned** - agent's accumulated knowledge
+- **Pool candidates** - top pools to deploy
+
+### Setup Dashboard
+
+**1. Install dashboard dependencies**
+```bash
+cd dashboard
+npm install
+cd ..
+```
+
+**2. Copy .env to dashboard folder**
+```bash
+cp .env dashboard/.env
+```
+
+**3. Run dashboard**
+```bash
+cd dashboard
+node server.js
+```
+
+**4. Access dashboard**
+```
+http://localhost:3000          # local
+http://YOUR_IP:3000           # network (same WiFi)
+```
+
+### Run on VPS (Production)
+
+**1. Install PM2 for auto-restart**
+```bash
+sudo npm install -g pm2
+```
+
+**2. Start dashboard with PM2**
+```bash
+cd ~/LPGoose/dashboard
+pm2 start server.js --name "dlmm-dashboard"
+pm2 save
+pm2 startup
+```
+
+**3. Access from anywhere**
+```
+http://YOUR_VPS_IP:3000
+```
+
+### Commands
+```bash
+pm2 status                    # check status
+pm2 logs dlmm-dashboard       # view logs
+pm2 restart dlmm-dashboard     # restart
+pm2 delete dlmm-dashboard     # stop
+```
+
+---
+
 ## How it learns
 
 Meridian accumulates structured knowledge in `lessons.json` with two components:

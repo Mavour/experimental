@@ -295,25 +295,6 @@ export async function executeTool(name, args) {
         const closeData = { pool_name: result.pool_name || args.position_address?.slice(0, 8), position: args.position_address, strategy: result.strategy };
         notifyClose({ pair: closeData.pool_name, pnlUsd: result.pnl_usd ?? 0, pnlPct: result.pnl_pct ?? 0 }).catch(() => {});
         dashNotifyClose(closeData, { pnl_usd: result.pnl_usd ?? 0, pnl_pct: result.pnl_pct ?? 0, fees_earned_usd: result.fees_earned_usd ?? 0, close_reason: result.close_reason }).catch(() => {});
-        
-        // Auto-swap base token back to SOL - ALWAYS do this unless skip_swap is true
-        // Lower threshold to $0.05 to catch smaller balances
-        if (!args.skip_swap && result.base_mint) {
-          try {
-            const balances = await getWalletBalances({});
-            const token = balances.tokens?.find(t => t.mint === result.base_mint);
-            if (token && token.usd >= 0.05) {
-              log("executor", `Auto-swapping ${token.symbol || result.base_mint.slice(0, 8)} ($${token.usd.toFixed(2)}) back to SOL`);
-              await swapToken({ input_mint: result.base_mint, output_mint: "SOL", amount: token.balance });
-            } else if (token) {
-              log("executor", `Token balance ${token.symbol} only $${token.usd.toFixed(2)}, skipping swap`);
-            }
-          } catch (e) {
-            log("executor_warn", `Auto-swap after close failed: ${e.message}`);
-          }
-        } else if (args.skip_swap) {
-          log("executor", `User requested to hold token ${result.base_mint?.slice(0, 8)}, skipping auto-swap`);
-        }
       } else if (name === "claim_fees" && config.management.autoSwapAfterClaim && result.base_mint) {
         try {
           const balances = await getWalletBalances({});

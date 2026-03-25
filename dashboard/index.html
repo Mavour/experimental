@@ -1529,22 +1529,62 @@
                 const date = new Date(p.recorded_at).toLocaleDateString('en-US', {
                     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                 });
-                if (!grouped[date]) grouped[date] = [];
-                grouped[date].push(p);
+                if (!grouped[date]) grouped[date] = {};
+                const poolKey = p.pool_name || p.pool_address?.slice(0, 8) || 'Unknown Pool';
+                if (!grouped[date][poolKey]) grouped[date][poolKey] = [];
+                grouped[date][poolKey].push(p);
             });
 
             let html = '';
-            Object.entries(grouped).forEach(([date, positions]) => {
-                const dayPnl = positions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+            Object.entries(grouped).forEach(([date, pools]) => {
+                const dayPnl = Object.values(pools).flat().reduce((s, p) => s + (p.pnl_usd || 0), 0);
                 html += `
                     <div class="date-group">
                         <div class="date-header">${date} <span style="color: ${dayPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${dayPnl >= 0 ? '+' : ''}$${dayPnl.toFixed(2)}</span></div>
-                        ${positions.map(p => renderJournalItem(p)).join('')}
+                        ${Object.entries(pools).map(([poolName, positions]) => renderPoolGroup(poolName, positions)).join('')}
                     </div>
                 `;
             });
 
             container.innerHTML = html;
+        }
+
+        function renderPoolGroup(poolName, positions) {
+            if (positions.length === 1) {
+                return renderJournalItem(positions[0]);
+            }
+            const totalPnl = positions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+            const pnlClass = totalPnl >= 0 ? 'positive' : 'negative';
+            const htmlId = 'pool-' + poolName.replace(/[^a-zA-Z0-9]/g, '-') + '-' + Date.now();
+            return `
+                <div class="pool-group" style="margin: 8px 0;">
+                    <div class="pool-group-header" onclick="togglePoolGroup('${htmlId}')" style="cursor: pointer; padding: 10px; background: var(--bg-hover); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 600;">${poolName}</span>
+                            <span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${positions.length} positions</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="metric-value ${pnlClass}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
+                            <span class="toggle-icon" id="${htmlId}-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="pool-group-content" id="${htmlId}" style="display: none; padding: 8px 0;">
+                        ${positions.map(p => renderJournalItem(p)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function togglePoolGroup(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▲';
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▼';
+            }
         }
 
         function renderJournalItem(p) {

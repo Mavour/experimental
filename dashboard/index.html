@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-primary: #0a0f14;
@@ -647,6 +648,50 @@
             font-size: 8px;
             color: var(--text-primary);
         }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 250px;
+        }
+
+        .stat-highlight {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .highlight-card {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .highlight-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .highlight-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -725,10 +770,44 @@
         </div>
 
         <div class="nav-tabs">
-            <div class="nav-tab active" onclick="switchTab('journal')">Journal</div>
+            <div class="nav-tab active" onclick="switchTab('stats')">Stats</div>
+            <div class="nav-tab" onclick="switchTab('journal')">Journal</div>
             <div class="nav-tab" onclick="switchTab('lessons')">Lessons</div>
             <div class="nav-tab" onclick="switchTab('candidates')">Candidates</div>
             <div class="nav-tab" onclick="switchTab('pools')">History</div>
+        </div>
+
+        <div id="tab-stats" class="tab-content active">
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        📈 P&L Performance
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="stat-highlight">
+                        <div class="highlight-card">
+                            <div class="highlight-value" id="bestTrade">--</div>
+                            <div class="highlight-label">Best Trade</div>
+                        </div>
+                        <div class="highlight-card">
+                            <div class="highlight-value" id="worstTrade">--</div>
+                            <div class="highlight-label">Worst Trade</div>
+                        </div>
+                        <div class="highlight-card">
+                            <div class="highlight-value" id="avgTrade">--</div>
+                            <div class="highlight-label">Avg Trade</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Cumulative P&L Over Time (USD)</div>
+                        <div class="chart-wrapper">
+                            <canvas id="pnlChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="tab-journal" class="tab-content active">
@@ -992,6 +1071,7 @@
                 renderCandidates();
                 renderPositions();
                 renderWallet();
+                renderChart();
 
                 if (!silent) {
                     document.getElementById('lastUpdate').textContent = 
@@ -1025,6 +1105,131 @@
             solEl.textContent = `${sol.toFixed(4)} SOL`;
             usdEl.textContent = `$${totalUsd.toLocaleString()}`;
             solEl.className = 'stat-value neutral';
+        }
+
+        let pnlChart = null;
+
+        function renderChart() {
+            if (allPerformance.length === 0) return;
+
+            // Sort by date
+            const sorted = [...allPerformance].sort((a, b) => 
+                new Date(a.recorded_at) - new Date(b.recorded_at)
+            );
+
+            // Calculate cumulative P&L
+            let cumulative = 0;
+            const labels = [];
+            const data = [];
+            const colors = [];
+
+            sorted.forEach(p => {
+                const date = new Date(p.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                cumulative += (p.pnl_usd || 0);
+                labels.push(date);
+                data.push(cumulative);
+                colors.push((p.pnl_usd || 0) >= 0 ? 'rgba(20, 184, 166, 0.8)' : 'rgba(239, 68, 68, 0.8)');
+            });
+
+            // Update highlights
+            const bestTrade = sorted.reduce((best, p) => (p.pnl_usd || 0) > (best?.pnl_usd || 0) ? p : best, null);
+            const worstTrade = sorted.reduce((worst, p) => (p.pnl_usd || 0) < (worst?.pnl_usd || 0) ? p : worst, null);
+            const avgTrade = sorted.reduce((s, p) => s + (p.pnl_usd || 0), 0) / sorted.length;
+
+            document.getElementById('bestTrade').textContent = `+$${bestTrade?.pnl_usd?.toFixed(2) || '0.00'}`;
+            document.getElementById('bestTrade').className = 'highlight-value';
+            document.getElementById('bestTrade').style.color = 'var(--accent-green)';
+
+            document.getElementById('worstTrade').textContent = `$${worstTrade?.pnl_usd?.toFixed(2) || '0.00'}`;
+            document.getElementById('worstTrade').className = 'highlight-value';
+            document.getElementById('worstTrade').style.color = 'var(--accent-red)';
+
+            document.getElementById('avgTrade').textContent = `$${avgTrade.toFixed(2)}`;
+            document.getElementById('avgTrade').className = 'highlight-value';
+            document.getElementById('avgTrade').style.color = avgTrade >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+            // Render chart
+            const ctx = document.getElementById('pnlChart').getContext('2d');
+            
+            if (pnlChart) {
+                pnlChart.destroy();
+            }
+
+            pnlChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cumulative P&L (USD)',
+                        data: data,
+                        borderColor: 'rgba(20, 184, 166, 1)',
+                        backgroundColor: function(context) {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, 'rgba(20, 184, 166, 0)');
+                            gradient.addColorStop(1, 'rgba(20, 184, 166, 0.3)');
+                            return gradient;
+                        },
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: data.map((v, i) => v >= (i > 0 ? data[i-1] : 0) ? 'rgba(20, 184, 166, 1)' : 'rgba(239, 68, 68, 1)'),
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#94a3b8',
+                            borderColor: 'rgba(20, 184, 166, 0.3)',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `Cumulative: $${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                            },
+                            ticks: {
+                                color: '#64748b',
+                                maxRotation: 45,
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                            },
+                            ticks: {
+                                color: '#64748b',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
         }
 
         function renderPositions() {

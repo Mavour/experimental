@@ -284,6 +284,36 @@ WARNING: This executes a real on-chain transaction. Cannot be undone.`,
   {
     type: "function",
     function: {
+      name: "zap_out",
+      description: `Close a DLMM position AND swap ALL received tokens to SOL in a single transaction using Meteora Zap.
+This is more efficient than close_position + swap_token separately.
+
+Use when:
+- You want to close a position and immediately get SOL back
+- Preferred over close_position when you don't want to hold the base token
+- Faster execution (one transaction instead of two)
+
+Returns the transaction hash and details.`,
+      parameters: {
+        type: "object",
+        properties: {
+          position_address: {
+            type: "string",
+            description: "The position public key to close and zap out"
+          },
+          output_mint: {
+            type: "string",
+            description: "The output token mint address. Default: SOL (So11111111111111111111111111111111111111112)"
+          }
+        },
+        required: ["position_address"]
+      }
+    }
+  },
+
+  {
+    type: "function",
+    function: {
       name: "get_wallet_positions",
       description: `Get all open DLMM positions for any Solana wallet address.
 Use this when the user asks about another wallet's positions, wants to monitor a wallet,

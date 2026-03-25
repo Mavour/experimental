@@ -287,6 +287,10 @@ export async function executeTool(name, args) {
         const deployData = { pool_name: result.pool_name || args.pool_name || args.pool_address?.slice(0, 8), amount_sol: args.amount_y ?? args.amount_sol ?? 0, position: result.position, pool: args.pool_address, strategy: args.strategy || 'spot', bin_range: result.price_range };
         notifyDeploy({ pair: deployData.pool_name, amountSol: deployData.amount_sol, position: deployData.position, tx: result.txs?.[0] ?? result.tx, priceRange: deployData.bin_range, binStep: result.bin_step, baseFee: result.base_fee }).catch(() => {});
         dashNotifyDeploy(deployData).catch(() => {});
+      } else if (name === "zap_out") {
+        if (result.success) {
+          log("executor", `Zap out successful: ${result.tx}`);
+        }
       } else if (name === "close_position") {
         const closeData = { pool_name: result.pool_name || args.position_address?.slice(0, 8), position: args.position_address, strategy: result.strategy };
         notifyClose({ pair: closeData.pool_name, pnlUsd: result.pnl_usd ?? 0, pnlPct: result.pnl_pct ?? 0 }).catch(() => {});

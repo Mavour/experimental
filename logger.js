@@ -50,6 +50,7 @@ function actionHint(action) {
     case "get_wallet_balance":return ` ${r.sol ?? ""} SOL`;
     case "get_top_candidates":return ` ${r?.candidates?.length ?? ""} pools`;
     case "swap_token":        return ` ${a.amount} ${a.input_mint?.slice(0,6)}→SOL`;
+    case "zap_out":           return ` ${a.position_address?.slice(0,8)} →${a.output_mint === "So11111111111111111111111111111111111111112" ? "SOL" : a.output_mint?.slice(0,6)} ${r.success ? "| OK" : "| " + r.error}`;
     case "update_config":     return ` ${Object.keys(r.applied || {}).join(", ")}`;
     case "add_lesson":        return ` saved`;
     case "clear_lessons":     return ` cleared ${r.cleared ?? ""}`;

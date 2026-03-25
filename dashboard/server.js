@@ -1,3 +1,4 @@
+import "dotenv/config";
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -110,12 +111,23 @@ async function fetchOpenPositions() {
         if (!fs.existsSync(dlmmPath)) {
             return { positions: [], error: 'DLMM module not found' };
         }
+        
         const { getMyPositions, getPositionPnl } = await import(`file://${dlmmPath.replace(/\\/g, '/')}`);
         const result = await getMyPositions({ force: true });
         
-        // Enrich with PnL data for bin info
+        const statePath = path.join(__dirname, '..', 'state.json');
+        let stateData = {};
+        if (fs.existsSync(statePath)) {
+            stateData = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+        }
+        
         if (result.positions && result.positions.length > 0) {
             const enriched = await Promise.all(result.positions.map(async (p) => {
+                const statePos = stateData.positions?.[p.position];
+                if (statePos?.pool_name) {
+                    p.pool_name = statePos.pool_name;
+                }
+                
                 try {
                     const pnl = await getPositionPnl({ pool_address: p.pool, position_address: p.position });
                     return { ...p, pnl };

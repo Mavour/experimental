@@ -974,7 +974,9 @@
 
                 const state = await stateRes.json();
                 allPerformance = state.performance || [];
-                allLessons = lessonsRes.ok ? (await lessonsRes.json()).lessons || [] : [];
+                const lessonsData = lessonsRes.ok ? await lessonsRes.json() : {};
+                allLessons = lessonsData.lessons || [];
+                allPerformance = lessonsData.performance || [];
                 allPools = poolRes.ok ? await poolRes.json() : {};
                 solPrice = priceRes.ok ? (await priceRes.json()).solana?.usd || 0 : 0;
                 const candidateData = await candidateRes.json();
@@ -1074,7 +1076,7 @@
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div class="position-badge">#${idx}</div>
                             <div>
-                                <div class="journal-pool">${p.pair || 'Position ' + idx}</div>
+                                <div class="journal-pool">${p.pool_name || p.pair || 'Position ' + idx}</div>
                                 <div class="journal-date">${p.position?.slice(0, 8) || ''}...</div>
                             </div>
                         </div>
@@ -1258,6 +1260,12 @@
             document.getElementById('winCount').textContent = `${wins} wins / ${allPerformance.length} total`;
 
             const avgEl = document.getElementById('avgPnlPct');
+
+            // Update open positions count
+            const openPosCount = openPositions.length;
+            const openPosValue = openPositions.reduce((s, p) => s + (p.pnl?.current_value_usd || p.total_value_usd || 0), 0);
+            document.getElementById('openPositions').textContent = openPosCount;
+            document.getElementById('positionsValue').textContent = `$${openPosValue.toFixed(2)} total`;
             avgEl.textContent = `${avgPnlPct >= 0 ? '+' : ''}${avgPnlPct.toFixed(2)}%`;
             avgEl.className = `stat-value ${avgPnlPct >= 0 ? 'positive' : 'negative'}`;
             document.getElementById('totalClosed').textContent = `${allPerformance.length} closed`;

@@ -1526,50 +1526,54 @@
 
             const grouped = {};
             filtered.forEach(p => {
-                const date = new Date(p.recorded_at).toLocaleDateString('en-US', {
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                });
-                if (!grouped[date]) grouped[date] = {};
                 const poolKey = p.pool_name || p.pool_address?.slice(0, 8) || 'Unknown Pool';
-                if (!grouped[date][poolKey]) grouped[date][poolKey] = [];
-                grouped[date][poolKey].push(p);
+                if (!grouped[poolKey]) grouped[poolKey] = [];
+                grouped[poolKey].push(p);
             });
 
             let html = '';
-            Object.entries(grouped).forEach(([date, pools]) => {
-                const dayPnl = Object.values(pools).flat().reduce((s, p) => s + (p.pnl_usd || 0), 0);
-                html += `
-                    <div class="date-group">
-                        <div class="date-header">${date} <span style="color: ${dayPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${dayPnl >= 0 ? '+' : ''}$${dayPnl.toFixed(2)}</span></div>
-                        ${Object.entries(pools).map(([poolName, positions]) => renderPoolGroup(poolName, positions)).join('')}
-                    </div>
-                `;
+            Object.entries(grouped).forEach(([poolName, positions]) => {
+                html += renderPoolGroup(poolName, positions);
             });
 
             container.innerHTML = html;
         }
 
         function renderPoolGroup(poolName, positions) {
-            if (positions.length === 1) {
-                return renderJournalItem(positions[0]);
-            }
+            positions.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+            
             const totalPnl = positions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+            const wins = positions.filter(p => (p.pnl_usd || 0) > 0).length;
+            const wr = positions.length > 0 ? Math.round((wins / positions.length) * 100) : 0;
+            const avgPnl = positions.length > 0 ? (totalPnl / positions.length) : 0;
             const pnlClass = totalPnl >= 0 ? 'positive' : 'negative';
             const htmlId = 'pool-' + poolName.replace(/[^a-zA-Z0-9]/g, '-') + '-' + Date.now();
+            
+            const entriesHtml = positions.map(p => {
+                const date = new Date(p.recorded_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                const pnlC = (p.pnl_usd || 0) >= 0 ? 'positive' : 'negative';
+                return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 13px;">
+                    <span style="color: var(--text-muted);">${date}</span>
+                    <span class="${pnlC}">${(p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl_usd || 0).toFixed(2)} (${(p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl_pct || 0).toFixed(2)}%)</span>
+                </div>`;
+            }).join('');
+            
             return `
-                <div class="pool-group" style="margin: 8px 0;">
-                    <div class="pool-group-header" onclick="togglePoolGroup('${htmlId}')" style="cursor: pointer; padding: 10px; background: var(--bg-hover); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div class="pool-group" style="margin: 12px 0; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                    <div class="pool-group-header" onclick="togglePoolGroup('${htmlId}')" style="cursor: pointer; padding: 14px; background: var(--bg-card); display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <span style="font-weight: 600;">${poolName}</span>
-                            <span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${positions.length} positions</span>
+                            <div style="font-weight: 700; font-size: 15px; color: var(--accent-teal);">${poolName}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                                ${positions.length} deploy(s) | ${wr}% WR | ${avgPnl >= 0 ? '+' : ''}${avgPnl.toFixed(2)}% avg
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="metric-value ${pnlClass}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
-                            <span class="toggle-icon" id="${htmlId}-icon">▼</span>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="metric-value ${pnlClass}" style="font-size: 18px;">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
+                            <span class="toggle-icon" id="${htmlId}-icon" style="font-size: 12px;">▼</span>
                         </div>
                     </div>
-                    <div class="pool-group-content" id="${htmlId}" style="display: none; padding: 8px 0;">
-                        ${positions.map(p => renderJournalItem(p)).join('')}
+                    <div class="pool-group-content" id="${htmlId}" style="display: none; padding: 0 14px 14px; background: var(--bg-secondary);">
+                        ${entriesHtml}
                     </div>
                 </div>
             `;

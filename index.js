@@ -11,6 +11,7 @@ import { evolveThresholds, getPerformanceSummary } from "./lessons.js";
 import { registerCronRestarter } from "./tools/executor.js";
 import { startPolling, stopPolling, sendMessage, sendHTML, notifyOutOfRange, isEnabled as telegramEnabled } from "./telegram.js";
 import { generateBriefing } from "./briefing.js";
+import { notifyOOR, notifyPositionUpdate, init as initDashboardNotifier } from "./dashboard-notifier.js";
 import { getLastBriefingDate, setLastBriefingDate, getTrackedPosition, setPositionInstruction } from "./state.js";
 import { getActiveStrategy } from "./strategy-library.js";
 import { recordPositionSnapshot, recallForPool } from "./pool-memory.js";
@@ -22,6 +23,14 @@ log("startup", `Mode: ${process.env.DRY_RUN === "true" ? "DRY RUN" : "LIVE"}`);
 log("startup", `Model: ${process.env.LLM_MODEL || "hermes-3-405b"}`);
 
 const TP_PCT  = config.management.takeProfitFeePct;
+
+// Initialize dashboard notifier (best-effort, won't crash if dashboard not running)
+try {
+  initDashboardNotifier();
+  log("startup", "Dashboard notifier initialized");
+} catch (e) {
+  log("startup", "Dashboard notifier skipped (ws module not available)");
+}
 const DEPLOY  = config.management.deployAmountSol;
 
 // ═══════════════════════════════════════════
@@ -202,12 +211,15 @@ After all positions, add one summary line:
     } catch (error) {
       log("cron_error", `Management cycle failed: ${error.message}`);
       mgmtReport = `Management cycle failed: ${error.message}`;
-    } finally {
+      } finally {
       if (!silent && telegramEnabled()) {
         if (mgmtReport) sendMessage(`🔄 Management Cycle\n\n${mgmtReport}`).catch(() => {});
         for (const p of positions) {
           if (!p.in_range && p.minutes_out_of_range >= config.management.outOfRangeWaitMinutes) {
             notifyOutOfRange({ pair: p.pair, minutesOOR: p.minutes_out_of_range }).catch(() => {});
+            notifyOOR(p).catch(() => {});
+          } else {
+            notifyPositionUpdate(p).catch(() => {});
           }
         }
       }

@@ -83,6 +83,11 @@ export async function recordPerformance(perf) {
   if (lesson) {
     data.lessons.push(lesson);
     log("lessons", `New lesson: ${lesson.rule}`);
+    
+    // Notify dashboard
+    import("./dashboard-notifier.js").then(m => {
+      m.notifyLesson(lesson).catch(() => {});
+    }).catch(() => {});
   }
 
   save(data);

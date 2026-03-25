@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meridian DLMM Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0f14;
+            --bg-secondary: #0d1117;
+            --bg-card: #111827;
+            --bg-hover: #1a2332;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-teal: #14b8a6;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #0ea5e9;
+            --accent-yellow: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --border-color: #1e3a4f;
+            --success-bg: rgba(20, 184, 166, 0.15);
+            --error-bg: rgba(239, 68, 68, 0.15);
+            --teal-gradient: linear-gradient(135deg, #14b8a6, #06b6d4, #0ea5e9);
+            --teal-glow: linear-gradient(135deg, rgba(20, 184, 166, 0.3), rgba(6, 182, 212, 0.3));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(20, 184, 166, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--teal-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(20, 184, 166, 0.4);
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--teal-gradient);
+            opacity: 0.7;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(20, 184, 166, 0.15);
+            border-color: rgba(20, 184, 166, 0.3);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .stat-value.positive { color: var(--accent-green); }
+        .stat-value.negative { color: var(--accent-red); }
+        .stat-value.neutral { 
+            background: var(--teal-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: linear-gradient(90deg, rgba(20, 184, 166, 0.05), transparent);
+        }
+
+        .section-header:hover {
+            background: linear-gradient(90deg, rgba(20, 184, 166, 0.1), var(--bg-hover));
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-badge {
+            background: var(--teal-gradient);
+            color: white;
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+        }
+
+        .section-toggle {
+            color: var(--accent-teal);
+            transition: transform 0.3s;
+        }
+
+        .section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .section.collapsed .section-content {
+            display: none;
+        }
+
+        .section-content {
+            padding: 16px 20px;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-tab:hover {
+            border-color: var(--accent-teal);
+            color: var(--text-primary);
+        }
+
+        .filter-tab.active {
+            background: var(--teal-gradient);
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 2px 10px rgba(20, 184, 166, 0.3);
+        }
+
+        .journal-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .journal-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .journal-item:hover {
+            border-color: var(--accent-teal);
+            box-shadow: 0 4px 15px rgba(20, 184, 166, 0.1);
+        }
+
+        .journal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .journal-pool {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .journal-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .journal-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .journal-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+        }
+
+        .tag.strategy { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+        .tag.profit { background: var(--success-bg); color: var(--accent-green); }
+        .tag.loss { background: var(--error-bg); color: var(--accent-red); }
+        .tag.neutral { background: rgba(245, 158, 11, 0.1); color: var(--accent-yellow); }
+
+        .lesson-item {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .lesson-item:last-child {
+            border-bottom: none;
+        }
+
+        .lesson-outcome {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .lesson-outcome.good { background: var(--success-bg); color: var(--accent-green); }
+        .lesson-outcome.bad { background: var(--error-bg); color: var(--accent-red); }
+        .lesson-outcome.manual { background: rgba(168, 85, 247, 0.2); color: var(--accent-purple); }
+        .lesson-outcome.neutral { background: rgba(245, 158, 11, 0.1); color: var(--accent-yellow); }
+
+        .lesson-rule {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .lesson-meta {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .lesson-pinned {
+            color: var(--accent-yellow);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.positive { background: var(--accent-green); }
+        .progress-fill.negative { background: var(--accent-red); }
+
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .nav-tab:hover {
+            color: var(--accent-teal);
+        }
+
+        .nav-tab.active {
+            background: var(--teal-gradient);
+            color: white;
+            box-shadow: 0 2px 12px rgba(20, 184, 166, 0.4);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .date-group {
+            margin-bottom: 20px;
+        }
+
+        .date-header {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-left: 4px;
+        }
+
+        .efficiency-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .efficiency-track {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-primary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .efficiency-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow), var(--accent-green));
+        }
+
+        @media (max-width: 640px) {
+            .header-content {
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .section-content {
+                padding: 12px;
+            }
+
+            .nav-tab {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+
+        .refresh-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 10px rgba(20, 184, 166, 0.2);
+        }
+
+        .refresh-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .refresh-btn.loading .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .sol-price {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .candidate-card {
+            border-left: 3px solid var(--accent-teal);
+        }
+
+        .rank-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            background: var(--teal-gradient);
+            color: white;
+            box-shadow: 0 2px 10px rgba(20, 184, 166, 0.3);
+        }
+
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #ffd700, #ffb700);
+            color: #000;
+        }
+
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+            color: #000;
+        }
+
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #cd7f32, #b06020);
+            color: #fff;
+        }
+
+        .metric-value.neutral {
+            color: var(--accent-teal);
+        }
+
+        .wallet-card {
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-hover));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wallet-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(20, 184, 166, 0.1) 0%, transparent 70%);
+        }
+
+        .position-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            background: var(--teal-gradient);
+            color: white;
+            box-shadow: 0 2px 10px rgba(20, 184, 166, 0.3);
+        }
+
+        .position-card {
+            border-left: 3px solid var(--accent-teal);
+        }
+
+        .position-card.oor {
+            border-left-color: var(--accent-red);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <span>Meridian DLMM</span>
+            </div>
+            <div>
+                <div class="last-update">
+                    <span id="connectionStatus" style="color: var(--accent-yellow);">⚡ Connecting...</span>
+                    <span id="lastUpdate" style="margin-left: 10px;">Loading...</span>
+                </div>
+                <button class="refresh-btn" onclick="loadData()">
+                    <span class="refresh-icon">⟳</span>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total P&L</div>
+                <div class="stat-value" id="totalPnl">--</div>
+                <div class="sol-price" id="totalPnlSol">-- SOL</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="winRate">--%</div>
+                <div class="stat-sub" id="winCount">-- wins</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg P&L %</div>
+                <div class="stat-value" id="avgPnlPct">--%</div>
+                <div class="stat-sub" id="totalClosed">-- closed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Range Efficiency</div>
+                <div class="stat-value" id="avgEfficiency">--%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="efficiencyBar"></div>
+                </div>
+            </div>
+            <div class="stat-card wallet-card">
+                <div class="stat-label">Wallet Balance</div>
+                <div class="stat-value neutral" id="walletSol">-- SOL</div>
+                <div class="sol-price" id="walletUsd">-- USD</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Open Positions</div>
+                <div class="stat-value" id="openPositions">--</div>
+                <div class="stat-sub" id="positionsValue">-- value</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <div class="section-title">
+                    📍 Active Positions
+                    <span class="section-badge" id="activePosCount">0</span>
+                </div>
+                <span class="section-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <div id="activePositionsList" class="journal-list"></div>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('journal')">Journal</div>
+            <div class="nav-tab" onclick="switchTab('lessons')">Lessons</div>
+            <div class="nav-tab" onclick="switchTab('candidates')">Candidates</div>
+            <div class="nav-tab" onclick="switchTab('pools')">History</div>
+        </div>
+
+        <div id="tab-journal" class="tab-content active">
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        📊 Daily Journal
+                        <span class="section-badge" id="journalCount">0</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="filter-tabs">
+                        <div class="filter-tab active" onclick="filterJournal('all')">All</div>
+                        <div class="filter-tab" onclick="filterJournal('profit')">Profit</div>
+                        <div class="filter-tab" onclick="filterJournal('loss')">Loss</div>
+                        <div class="filter-tab" onclick="filterJournal('today')">Today</div>
+                        <div class="filter-tab" onclick="filterJournal('week')">This Week</div>
+                    </div>
+                    <div class="journal-list" id="journalList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-lessons" class="tab-content">
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        🧠 Lessons Learned
+                        <span class="section-badge" id="lessonCount">0</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="filter-tabs">
+                        <div class="filter-tab active" onclick="filterLessons('all')">All</div>
+                        <div class="filter-tab" onclick="filterLessons('good')">Good</div>
+                        <div class="filter-tab" onclick="filterLessons('bad')">Bad</div>
+                        <div class="filter-tab" onclick="filterLessons('pinned')">Pinned</div>
+                    </div>
+                    <div id="lessonList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-candidates" class="tab-content">
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        🎯 Top Pool Candidates
+                        <span class="section-badge" id="candidateCount">0</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div id="candidateList" class="journal-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-pools" class="tab-content">
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        🏊 Pool Memory
+                        <span class="section-badge" id="poolCount">0</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div id="poolList"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allPerformance = [];
+        let allLessons = [];
+        let allPools = {};
+        let allCandidates = [];
+        let walletData = {};
+        let openPositions = [];
+        let solPrice = 0;
+        let currentJournalFilter = 'all';
+        let currentLessonFilter = 'all';
+        let ws = null;
+        let wsConnected = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT = 5;
+
+        function updateConnectionStatus(connected) {
+            wsConnected = connected;
+            const statusEl = document.getElementById('connectionStatus');
+            if (statusEl) {
+                statusEl.textContent = connected ? '🟢 Live' : '🔴 Reconnecting...';
+                statusEl.style.color = connected ? 'var(--accent-green)' : 'var(--accent-red)';
+            }
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('[WS] Connected');
+                    updateConnectionStatus(true);
+                    reconnectAttempts = 0;
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleWebSocketMessage(msg);
+                    } catch (e) {
+                        console.error('[WS] Failed to parse message:', e);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('[WS] Disconnected');
+                    updateConnectionStatus(false);
+                    if (reconnectAttempts < MAX_RECONNECT) {
+                        reconnectAttempts++;
+                        setTimeout(connectWebSocket, 3000 * reconnectAttempts);
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error('[WS] Error:', err);
+                    updateConnectionStatus(false);
+                };
+            } catch (e) {
+                console.error('[WS] Failed to connect:', e);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function handleWebSocketMessage(msg) {
+            switch(msg.type) {
+                case 'heartbeat':
+                    if (msg.data.wallet) {
+                        walletData = msg.data.wallet;
+                        renderWallet();
+                    }
+                    if (msg.data.positions) {
+                        openPositions = msg.data.positions;
+                        renderPositions();
+                        renderStats();
+                    }
+                    break;
+                case 'position_opened':
+                case 'position_closed':
+                case 'position_updated':
+                case 'lesson_added':
+                case 'deploy':
+                case 'close':
+                case 'swap':
+                case 'oor':
+                    showNotification(msg.type, msg.data);
+                    loadData(true);
+                    break;
+                default:
+                    loadData(true);
+            }
+        }
+
+        function showNotification(type, data) {
+            const icons = {
+                'position_opened': '📍',
+                'position_closed': '📊',
+                'position_updated': '🔄',
+                'lesson_added': '🧠',
+                'deploy': '🚀',
+                'close': '🔒',
+                'swap': '💱',
+                'oor': '⚠️'
+            };
+            const icon = icons[type] || '📢';
+            
+            let message = data?.message || data?.pool_name || data?.rule || 'Update received';
+            if (data?.pnl_usd !== undefined) {
+                message += ` (${data.pnl_usd >= 0 ? '+' : ''}$${data.pnl_usd.toFixed(2)})`;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = 'realtime-notification';
+            notification.innerHTML = `<span>${icon}</span> ${message}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: var(--bg-card);
+                border: 1px solid var(--accent-teal);
+                border-radius: 10px;
+                padding: 12px 16px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 4px 20px rgba(20, 184, 166, 0.3);
+                max-width: 300px;
+                font-size: 13px;
+            `;
+            
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        async function loadData(silent = false) {
+            if (!silent) {
+                const btn = document.querySelector('.refresh-btn');
+                if (btn) btn.classList.add('loading');
+            }
+
+            try {
+                const [stateRes, lessonsRes, poolRes, priceRes, candidateRes, walletRes, positionsRes] = await Promise.all([
+                    fetch('state.json'),
+                    fetch('lessons.json'),
+                    fetch('pool-memory.json'),
+                    fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'),
+                    fetch('/api/candidates').catch(() => ({ ok: false, json: () => ({ candidates: [], total: 0 }) })),
+                    fetch('/api/wallet').catch(() => ({ ok: false, json: () => ({}) })),
+                    fetch('/api/positions').catch(() => ({ ok: false, json: () => ({ positions: [] }) }))
+                ]);
+
+                const state = await stateRes.json();
+                allPerformance = state.performance || [];
+                allLessons = lessonsRes.ok ? (await lessonsRes.json()).lessons || [] : [];
+                allPools = poolRes.ok ? await poolRes.json() : {};
+                solPrice = priceRes.ok ? (await priceRes.json()).solana?.usd || 0 : 0;
+                const candidateData = await candidateRes.json();
+                allCandidates = candidateData.candidates || [];
+                walletData = walletRes.ok ? await walletRes.json() : {};
+                const positionsData = positionsRes.ok ? await positionsRes.json() : {};
+                openPositions = positionsData.positions || [];
+
+                renderStats();
+                renderJournal();
+                renderLessons();
+                renderPools();
+                renderCandidates();
+                renderPositions();
+                renderWallet();
+
+                if (!silent) {
+                    document.getElementById('lastUpdate').textContent = 
+                        `Updated: ${new Date().toLocaleTimeString()}`;
+                }
+            } catch (e) {
+                console.error('Failed to load data:', e);
+                if (!silent) {
+                    document.getElementById('lastUpdate').textContent = 'Error loading data';
+                }
+            }
+
+            const btn = document.querySelector('.refresh-btn');
+            if (btn) btn.classList.remove('loading');
+        }
+
+        function renderWallet() {
+            const solEl = document.getElementById('walletSol');
+            const usdEl = document.getElementById('walletUsd');
+            
+            if (walletData.error) {
+                solEl.textContent = '--';
+                usdEl.textContent = 'Configure wallet';
+                solEl.className = 'stat-value neutral';
+                return;
+            }
+
+            const sol = walletData.sol || 0;
+            const totalUsd = walletData.total_usd || 0;
+            
+            solEl.textContent = `${sol.toFixed(4)} SOL`;
+            usdEl.textContent = `$${totalUsd.toLocaleString()}`;
+            solEl.className = 'stat-value neutral';
+        }
+
+        function renderPositions() {
+            const container = document.getElementById('activePositionsList');
+            const countEl = document.getElementById('activePosCount');
+            const countStatsEl = document.getElementById('openPositions');
+            const valueStatsEl = document.getElementById('positionsValue');
+
+            countEl.textContent = openPositions.length;
+            countStatsEl.textContent = openPositions.length;
+            
+            const totalValue = openPositions.reduce((s, p) => s + (p.total_value_usd || 0), 0);
+            const totalPnl = openPositions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+            valueStatsEl.textContent = `$${totalValue.toFixed(2)} total`;
+
+            if (openPositions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📍</div>
+                        <p>No active positions</p>
+                        <p style="font-size: 12px; margin-top: 8px;">Check Candidates tab to deploy</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = openPositions.map((p, idx) => renderPositionItem(p, idx + 1)).join('');
+        }
+
+        function renderPositionItem(p, idx) {
+            const inRange = p.in_range !== false;
+            const pnlClass = (p.pnl_usd || 0) >= 0 ? 'positive' : 'negative';
+            const rangeClass = inRange ? 'profit' : 'loss';
+            const ageStr = p.age_minutes ? formatDuration(p.age_minutes) : 'N/A';
+            const pnlPctClass = (p.pnl_pct || 0) >= 0 ? 'positive' : 'negative';
+
+            return `
+                <div class="journal-item position-card">
+                    <div class="journal-header">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="position-badge">#${idx}</div>
+                            <div>
+                                <div class="journal-pool">${p.pair || 'Position ' + idx}</div>
+                                <div class="journal-date">${p.position?.slice(0, 8) || ''}...</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl_usd || 0).toFixed(2)}</div>
+                            <div class="metric-value ${pnlPctClass}">${(p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl_pct || 0).toFixed(2)}%</div>
+                        </div>
+                    </div>
+                    <div class="journal-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Value</div>
+                            <div class="metric-value">$${(p.total_value_usd || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Status</div>
+                            <div class="metric-value ${rangeClass}">${inRange ? '✓ In Range' : '⚠ OOR'}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Age</div>
+                            <div class="metric-value">${ageStr}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Active Bin</div>
+                            <div class="metric-value">${p.active_bin || '?'}</div>
+                        </div>
+                    </div>
+                    <div class="journal-metrics" style="margin-top: 10px;">
+                        <div class="metric">
+                            <div class="metric-label">Unclaimed Fees</div>
+                            <div class="metric-value positive">$${(p.unclaimed_fees_usd || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Collected Fees</div>
+                            <div class="metric-value positive">$${(p.collected_fees_usd || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Bin Range</div>
+                            <div class="metric-value">${p.lower_bin || '?'} - ${p.upper_bin || '?'}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">OOR Time</div>
+                            <div class="metric-value ${(p.minutes_out_of_range || 0) > 0 ? 'negative' : 'positive'}">${p.minutes_out_of_range ? formatDuration(p.minutes_out_of_range) : '0m'}</div>
+                        </div>
+                    </div>
+                    <div class="journal-tags" style="margin-top: 10px;">
+                        <span class="tag ${rangeClass}">${inRange ? 'In Range' : 'Out of Range'}</span>
+                        ${!inRange ? `<span class="tag loss">OOR ${p.minutes_out_of_range ? formatDuration(p.minutes_out_of_range) : ''}</span>` : ''}
+                        ${(p.unclaimed_fees_usd || 0) > 0 ? `<span class="tag profit">Claim $${(p.unclaimed_fees_usd || 0).toFixed(2)}</span>` : ''}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 10px; color: var(--text-muted);">
+                        Pool: ${p.pool ? p.pool.slice(0, 8) + '...' : 'N/A'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCandidates() {
+            const container = document.getElementById('candidateList');
+            document.getElementById('candidateCount').textContent = allCandidates.length;
+
+            if (allCandidates.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <p>No candidates available</p>
+                        <p style="font-size: 12px; margin-top: 8px;">Click Refresh to reload</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = allCandidates.map((c, idx) => renderCandidateItem(c, idx + 1)).join('');
+        }
+
+        function renderCandidateItem(c, rank) {
+            const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+            const organicClass = (c.organic_score || 0) >= 70 ? 'positive' : (c.organic_score || 0) >= 50 ? 'neutral' : 'negative';
+            const mcapFormatted = formatLargeNumber(c.market_cap);
+            const volumeFormatted = formatLargeNumber(c.volume_24h);
+            const tvlFormatted = formatLargeNumber(c.tvl);
+            const feeTvlClass = (c.fee_tvl_ratio || 0) >= 0.5 ? 'positive' : (c.fee_tvl_ratio || 0) >= 0.2 ? 'neutral' : 'negative';
+            const volClass = (c.volatility || 0) >= 4 ? 'negative' : (c.volatility || 0) >= 2 ? 'neutral' : 'positive';
+
+            return `
+                <div class="journal-item candidate-card">
+                    <div class="journal-header">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="rank-badge ${rankClass}">#${rank}</div>
+                            <div>
+                                <div class="journal-pool">${c.name || 'Unknown'}</div>
+                                <div class="journal-date">Bin Step: ${c.bin_step || '?'} • ${c.pool_type?.toUpperCase() || 'DLMM'}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="metric-value positive">${(c.fee_pct || 0).toFixed(1)}% Fee</div>
+                            <div class="metric-value ${feeTvlClass}" style="font-size: 11px;">Fee/TVL: ${((c.fee_tvl_ratio || 0) * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                    <div class="journal-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Volume 24h</div>
+                            <div class="metric-value">$${volumeFormatted}</div>
+                            <div style="font-size: 10px; color: ${(c.volume_change || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${(c.volume_change || 0) >= 0 ? '+' : ''}${(c.volume_change || 0).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">TVL</div>
+                            <div class="metric-value">$${tvlFormatted}</div>
+                            <div style="font-size: 10px; color: ${(c.tvl_change || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${(c.tvl_change || 0) >= 0 ? '+' : ''}${(c.tvl_change || 0).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Market Cap</div>
+                            <div class="metric-value">$${mcapFormatted}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Organic</div>
+                            <div class="metric-value ${organicClass}">${(c.organic_score || 0).toFixed(0)}</div>
+                        </div>
+                    </div>
+                    <div class="journal-metrics" style="margin-top: 10px;">
+                        <div class="metric">
+                            <div class="metric-label">Holders</div>
+                            <div class="metric-value">${(c.holders || 0).toLocaleString()}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Top 10 %</div>
+                            <div class="metric-value ${(c.top_holders_pct || 0) > 60 ? 'negative' : (c.top_holders_pct || 0) > 40 ? 'neutral' : 'positive'}">${(c.top_holders_pct || 0).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Volatility</div>
+                            <div class="metric-value ${volClass}">${(c.volatility || 0).toFixed(1)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Price</div>
+                            <div class="metric-value">$${(c.price || 0).toFixed(6)}</div>
+                        </div>
+                    </div>
+                    <div class="journal-tags" style="margin-top: 10px;">
+                        <span class="tag ${organicClass}">Organic ${(c.organic_score || 0).toFixed(0)}</span>
+                        <span class="tag ${volClass}">Vol ${(c.volatility || 0).toFixed(1)}</span>
+                        <span class="tag strategy">bin ${c.bin_step || '?'}</span>
+                        ${(c.top_holders_pct || 0) > 60 ? '<span class="tag loss">High Concentration</span>' : ''}
+                    </div>
+                    ${c.risk_flags?.length > 0 ? `
+                        <div style="margin-top: 8px; font-size: 10px; color: var(--accent-yellow);">
+                            ⚠️ ${c.risk_flags.join(', ')}
+                        </div>
+                    ` : ''}
+                    <div style="margin-top: 10px; font-size: 10px; color: var(--text-muted);">
+                        Pool: ${c.pool ? c.pool.slice(0, 8) + '...' + c.pool.slice(-8) : 'N/A'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatLargeNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toFixed(0);
+        }
+
+        function renderStats() {
+            const totalPnl = allPerformance.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+            const avgPnlPct = allPerformance.length > 0 
+                ? allPerformance.reduce((s, p) => s + (p.pnl_pct || 0), 0) / allPerformance.length 
+                : 0;
+            const avgEfficiency = allPerformance.length > 0 
+                ? allPerformance.reduce((s, p) => s + (p.range_efficiency || 0), 0) / allPerformance.length 
+                : 0;
+            const wins = allPerformance.filter(p => (p.pnl_usd || 0) > 0).length;
+            const winRate = allPerformance.length > 0 ? (wins / allPerformance.length) * 100 : 0;
+            const pnlSol = solPrice > 0 ? totalPnl / solPrice : 0;
+
+            const pnlEl = document.getElementById('totalPnl');
+            pnlEl.textContent = `$${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}`;
+            pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('totalPnlSol').textContent = `${pnlSol >= 0 ? '+' : ''}${pnlSol.toFixed(4)} SOL`;
+
+            document.getElementById('winRate').textContent = `${winRate.toFixed(0)}%`;
+            document.getElementById('winCount').textContent = `${wins} wins / ${allPerformance.length} total`;
+
+            const avgEl = document.getElementById('avgPnlPct');
+            avgEl.textContent = `${avgPnlPct >= 0 ? '+' : ''}${avgPnlPct.toFixed(2)}%`;
+            avgEl.className = `stat-value ${avgPnlPct >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('totalClosed').textContent = `${allPerformance.length} closed`;
+
+            document.getElementById('avgEfficiency').textContent = `${avgEfficiency.toFixed(1)}%`;
+            document.getElementById('efficiencyBar').style.width = `${avgEfficiency}%`;
+        }
+
+        function filterJournal(filter) {
+            currentJournalFilter = filter;
+            document.querySelectorAll('#tab-journal .filter-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.toLowerCase().includes(filter) || 
+                    (filter === 'all' && tab.textContent === 'All'));
+            });
+            renderJournal();
+        }
+
+        function renderJournal() {
+            const container = document.getElementById('journalList');
+            document.getElementById('journalCount').textContent = allPerformance.length;
+
+            let filtered = [...allPerformance];
+            
+            switch(currentJournalFilter) {
+                case 'profit':
+                    filtered = filtered.filter(p => (p.pnl_usd || 0) > 0);
+                    break;
+                case 'loss':
+                    filtered = filtered.filter(p => (p.pnl_usd || 0) < 0);
+                    break;
+                case 'today':
+                    const today = new Date().toDateString();
+                    filtered = filtered.filter(p => new Date(p.recorded_at).toDateString() === today);
+                    break;
+                case 'week':
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    filtered = filtered.filter(p => new Date(p.recorded_at) >= weekAgo);
+                    break;
+            }
+
+            filtered.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <p>No positions found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const grouped = {};
+            filtered.forEach(p => {
+                const date = new Date(p.recorded_at).toLocaleDateString('en-US', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(p);
+            });
+
+            let html = '';
+            Object.entries(grouped).forEach(([date, positions]) => {
+                const dayPnl = positions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+                html += `
+                    <div class="date-group">
+                        <div class="date-header">${date} <span style="color: ${dayPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${dayPnl >= 0 ? '+' : ''}$${dayPnl.toFixed(2)}</span></div>
+                        ${positions.map(p => renderJournalItem(p)).join('')}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderJournalItem(p) {
+            const pnlClass = (p.pnl_usd || 0) >= 0 ? 'positive' : 'negative';
+            const pnlPctClass = (p.pnl_pct || 0) >= 0 ? 'positive' : 'negative';
+            const tagClass = (p.pnl_usd || 0) >= 0 ? 'profit' : 'loss';
+
+            return `
+                <div class="journal-item">
+                    <div class="journal-header">
+                        <div>
+                            <div class="journal-pool">${p.pool_name || 'Unknown Pool'}</div>
+                            <div class="journal-date">${new Date(p.recorded_at).toLocaleTimeString()}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl_usd || 0).toFixed(2)}</div>
+                            <div class="metric-value ${pnlPctClass}">${(p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl_pct || 0).toFixed(2)}%</div>
+                        </div>
+                    </div>
+                    <div class="journal-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Strategy</div>
+                            <div class="metric-value">${p.strategy || 'N/A'}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Fees Earned</div>
+                            <div class="metric-value positive">$${(p.fees_earned_usd || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Range Eff.</div>
+                            <div class="metric-value">${(p.range_efficiency || 0).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Held</div>
+                            <div class="metric-value">${formatDuration(p.minutes_held)}</div>
+                        </div>
+                    </div>
+                    ${p.close_reason ? `<div style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">📝 ${p.close_reason}</div>` : ''}
+                    <div class="journal-tags">
+                        <span class="tag strategy">${p.strategy || 'N/A'}</span>
+                        <span class="tag ${tagClass}">${pnlClass === 'positive' ? '✓ Profit' : '✗ Loss'}</span>
+                        <span class="tag">vol ${p.volatility || '?'}</span>
+                        <span class="tag">fee/TVL ${p.fee_tvl_ratio || '?'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterLessons(filter) {
+            currentLessonFilter = filter;
+            document.querySelectorAll('#tab-lessons .filter-tab').forEach(tab => {
+                const tabFilter = tab.textContent.toLowerCase().includes('good') ? 'good' :
+                                  tab.textContent.toLowerCase().includes('bad') ? 'bad' :
+                                  tab.textContent.toLowerCase().includes('pinned') ? 'pinned' : 'all';
+                tab.classList.toggle('active', tabFilter === filter);
+            });
+            renderLessons();
+        }
+
+        function renderLessons() {
+            const container = document.getElementById('lessonList');
+            document.getElementById('lessonCount').textContent = allLessons.length;
+
+            let filtered = [...allLessons];
+            
+            switch(currentLessonFilter) {
+                case 'good':
+                    filtered = filtered.filter(l => ['good', 'worked'].includes(l.outcome?.toLowerCase()));
+                    break;
+                case 'bad':
+                    filtered = filtered.filter(l => ['bad', 'poor', 'failed'].includes(l.outcome?.toLowerCase()));
+                    break;
+                case 'pinned':
+                    filtered = filtered.filter(l => l.pinned);
+                    break;
+            }
+
+            filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🧠</div>
+                        <p>No lessons yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(l => `
+                <div class="lesson-item">
+                    <span class="lesson-outcome ${getOutcomeClass(l.outcome)}">${l.outcome || 'unknown'}</span>
+                    ${l.pinned ? '<span class="lesson-pinned">📌</span>' : ''}
+                    <div class="lesson-rule">${l.rule}</div>
+                    <div class="lesson-meta">
+                        <span>${l.tags?.join(', ') || 'no tags'}</span>
+                        <span>•</span>
+                        <span>${l.created_at ? new Date(l.created_at).toLocaleDateString() : 'unknown date'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getOutcomeClass(outcome) {
+            if (!outcome) return 'neutral';
+            const o = outcome.toLowerCase();
+            if (['good', 'worked'].includes(o)) return 'good';
+            if (['bad', 'failed', 'poor'].includes(o)) return 'bad';
+            return 'neutral';
+        }
+
+        function renderPools() {
+            const container = document.getElementById('poolList');
+            const poolKeys = Object.keys(allPools);
+            document.getElementById('poolCount').textContent = poolKeys.length;
+
+            if (poolKeys.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🏊</div>
+                        <p>No pool history</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = poolKeys.map(addr => {
+                const pool = allPools[addr];
+                const winClass = (pool.win_rate || 0) >= 0.5 ? 'positive' : 'negative';
+                return `
+                    <div class="journal-item" style="margin-bottom: 12px;">
+                        <div class="journal-header">
+                            <div>
+                                <div class="journal-pool">${pool.name || addr.slice(0, 8)}</div>
+                                <div class="journal-date">${pool.total_deploys} deploy(s)</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="metric-value ${winClass}">${((pool.win_rate || 0) * 100).toFixed(0)}% WR</div>
+                                <div class="metric-value ${(pool.avg_pnl_pct || 0) >= 0 ? 'positive' : 'negative'}">${(pool.avg_pnl_pct || 0) >= 0 ? '+' : ''}${pool.avg_pnl_pct || 0}% avg</div>
+                            </div>
+                        </div>
+                        ${pool.notes?.length > 0 ? `
+                            <div style="margin-top: 8px; padding: 8px; background: var(--bg-primary); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Latest Note:</div>
+                                <div style="font-size: 12px;">${pool.notes[pool.notes.length - 1].note}</div>
+                            </div>
+                        ` : ''}
+                        ${pool.deploys?.length > 0 ? `
+                            <div class="journal-tags" style="margin-top: 10px;">
+                                ${pool.deploys.slice(-3).map(d => `
+                                    <span class="tag ${(d.pnl_pct || 0) >= 0 ? 'profit' : 'loss'}">
+                                        ${new Date(d.closed_at).toLocaleDateString()}: ${(d.pnl_pct || 0) >= 0 ? '+' : ''}${d.pnl_pct || 0}%
+                                    </span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.nav-tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function toggleSection(header) {
+            header.parentElement.classList.toggle('collapsed');
+        }
+
+        function formatDuration(minutes) {
+            if (!minutes) return 'N/A';
+            if (minutes < 60) return `${Math.round(minutes)}m`;
+            const h = Math.floor(minutes / 60);
+            const m = Math.round(minutes % 60);
+            return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        }
+
+        loadData();
+        setInterval(loadData, 30000);
+        connectWebSocket();
+    </script>
+</body>
+</html>

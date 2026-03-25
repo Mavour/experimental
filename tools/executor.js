@@ -29,6 +29,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const USER_CONFIG_PATH = path.join(__dirname, "../user-config.json");
 import { log, logAction } from "../logger.js";
 import { notifyDeploy, notifyClose, notifySwap } from "../telegram.js";
+import { notifyDeploy as dashNotifyDeploy, notifyClose as dashNotifyClose, notifySwap as dashNotifySwap, notifyLesson } from "../dashboard-notifier.js";
 
 // Registered by index.js so update_config can restart cron jobs when intervals change
 let _cronRestarter = null;
@@ -277,11 +278,17 @@ export async function executeTool(name, args) {
 
     if (success) {
       if (name === "swap_token" && result.tx) {
-        notifySwap({ inputSymbol: args.input_mint?.slice(0, 8), outputSymbol: args.output_mint === "So11111111111111111111111111111111111111112" || args.output_mint === "SOL" ? "SOL" : args.output_mint?.slice(0, 8), amountIn: result.amount_in, amountOut: result.amount_out, tx: result.tx }).catch(() => {});
+        const swapData = { inputSymbol: args.input_mint?.slice(0, 8), outputSymbol: args.output_mint === "So11111111111111111111111111111111111111112" || args.output_mint === "SOL" ? "SOL" : args.output_mint?.slice(0, 8), amountIn: result.amount_in, amountOut: result.amount_out, tx: result.tx };
+        notifySwap(swapData).catch(() => {});
+        dashNotifySwap(swapData).catch(() => {});
       } else if (name === "deploy_position") {
-        notifyDeploy({ pair: result.pool_name || args.pool_name || args.pool_address?.slice(0, 8), amountSol: args.amount_y ?? args.amount_sol ?? 0, position: result.position, tx: result.txs?.[0] ?? result.tx, priceRange: result.price_range, binStep: result.bin_step, baseFee: result.base_fee }).catch(() => {});
+        const deployData = { pool_name: result.pool_name || args.pool_name || args.pool_address?.slice(0, 8), amount_sol: args.amount_y ?? args.amount_sol ?? 0, position: result.position, pool: args.pool_address, strategy: args.strategy || 'spot', bin_range: result.price_range };
+        notifyDeploy({ pair: deployData.pool_name, amountSol: deployData.amount_sol, position: deployData.position, tx: result.txs?.[0] ?? result.tx, priceRange: deployData.bin_range, binStep: result.bin_step, baseFee: result.base_fee }).catch(() => {});
+        dashNotifyDeploy(deployData).catch(() => {});
       } else if (name === "close_position") {
-        notifyClose({ pair: result.pool_name || args.position_address?.slice(0, 8), pnlUsd: result.pnl_usd ?? 0, pnlPct: result.pnl_pct ?? 0 }).catch(() => {});
+        const closeData = { pool_name: result.pool_name || args.position_address?.slice(0, 8), position: args.position_address, strategy: result.strategy };
+        notifyClose({ pair: closeData.pool_name, pnlUsd: result.pnl_usd ?? 0, pnlPct: result.pnl_pct ?? 0 }).catch(() => {});
+        dashNotifyClose(closeData, { pnl_usd: result.pnl_usd ?? 0, pnl_pct: result.pnl_pct ?? 0, fees_earned_usd: result.fees_earned_usd ?? 0, close_reason: result.close_reason }).catch(() => {});
         // Auto-swap base token back to SOL unless user said to hold
         if (!args.skip_swap && result.base_mint) {
           try {

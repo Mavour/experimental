@@ -1,0 +1,10 @@
+{
+  "name": "dlmm-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Real-time DLMM Agent Dashboard",
+  "main": "server.js",
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

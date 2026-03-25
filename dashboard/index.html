@@ -606,6 +606,47 @@
         .position-card.oor {
             border-left-color: var(--accent-red);
         }
+
+        .range-bar-container {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .range-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .range-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .range-marker {
+            position: absolute;
+            top: -6px;
+            width: 3px;
+            height: 20px;
+            background: var(--text-primary);
+            border-radius: 2px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+
+        .range-marker::after {
+            content: '▼';
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            color: var(--text-primary);
+        }
     </style>
 </head>
 <body>
@@ -1017,52 +1058,61 @@
             const rangeClass = inRange ? 'profit' : 'loss';
             const ageStr = p.age_minutes ? formatDuration(p.age_minutes) : 'N/A';
             const pnlPctClass = (p.pnl_pct || 0) >= 0 ? 'positive' : 'negative';
+            
+            const lowerBin = p.pnl?.lower_bin ?? p.lower_bin ?? 0;
+            const upperBin = p.pnl?.upper_bin ?? p.upper_bin ?? 0;
+            const activeBin = p.pnl?.active_bin ?? p.active_bin ?? 0;
+            const totalBins = upperBin - lowerBin || 1;
+            const binsFromLower = activeBin - lowerBin;
+            const positionPercent = Math.max(0, Math.min(100, (binsFromLower / totalBins) * 100));
+            
+            const rangeBarColor = inRange ? 'var(--accent-teal)' : 'var(--accent-red)';
 
             return `
-                <div class="journal-item position-card">
+                <div class="journal-item position-card ${!inRange ? 'oor' : ''}">
                     <div class="journal-header">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div class="position-badge">#${idx}</div>
                             <div>
-                                <div class="journal-pool">${p.pair || 'Position ' + idx}</div>
+                                <div class="journal-pool">${p.pool_name || p.pair || 'Position ' + idx}</div>
                                 <div class="journal-date">${p.position?.slice(0, 8) || ''}...</div>
                             </div>
                         </div>
                         <div style="text-align: right;">
-                            <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl_usd || 0).toFixed(2)}</div>
-                            <div class="metric-value ${pnlPctClass}">${(p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl_pct || 0).toFixed(2)}%</div>
+                            <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl?.pnl_usd || p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl?.pnl_usd || p.pnl_usd || 0).toFixed(2)}</div>
+                            <div class="metric-value ${pnlPctClass}">${(p.pnl?.pnl_pct || p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl?.pnl_pct || p.pnl_pct || 0).toFixed(2)}%</div>
                         </div>
                     </div>
+                    
+                    <div class="range-bar-container" style="margin: 12px 0;">
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">
+                            <span>Bin ${lowerBin}</span>
+                            <span>Range: ${totalBins} bins</span>
+                            <span>Bin ${upperBin}</span>
+                        </div>
+                        <div class="range-bar">
+                            <div class="range-fill" style="width: ${positionPercent}%; background: ${rangeBarColor};"></div>
+                            <div class="range-marker" style="left: ${positionPercent}%;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px;">
+                            <span class="metric-value ${binsFromLower < 0 ? 'negative' : 'positive'}">${binsFromLower}</span>
+                            <span style="color: ${rangeBarColor}; font-weight: 600;">${inRange ? '✓ In Range' : '⚠ OOR'}</span>
+                            <span>Active: ${activeBin}</span>
+                        </div>
+                    </div>
+                    
                     <div class="journal-metrics">
                         <div class="metric">
                             <div class="metric-label">Value</div>
-                            <div class="metric-value">$${(p.total_value_usd || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Status</div>
-                            <div class="metric-value ${rangeClass}">${inRange ? '✓ In Range' : '⚠ OOR'}</div>
+                            <div class="metric-value">$${(p.pnl?.current_value_usd || p.total_value_usd || 0).toFixed(2)}</div>
                         </div>
                         <div class="metric">
                             <div class="metric-label">Age</div>
                             <div class="metric-value">${ageStr}</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-label">Active Bin</div>
-                            <div class="metric-value">${p.active_bin || '?'}</div>
-                        </div>
-                    </div>
-                    <div class="journal-metrics" style="margin-top: 10px;">
-                        <div class="metric">
-                            <div class="metric-label">Unclaimed Fees</div>
-                            <div class="metric-value positive">$${(p.unclaimed_fees_usd || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Collected Fees</div>
-                            <div class="metric-value positive">$${(p.collected_fees_usd || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Bin Range</div>
-                            <div class="metric-value">${p.lower_bin || '?'} - ${p.upper_bin || '?'}</div>
+                            <div class="metric-label">Unclaimed</div>
+                            <div class="metric-value positive">$${(p.pnl?.unclaimed_fee_usd || p.unclaimed_fees_usd || 0).toFixed(2)}</div>
                         </div>
                         <div class="metric">
                             <div class="metric-label">OOR Time</div>
@@ -1070,8 +1120,9 @@
                         </div>
                     </div>
                     <div class="journal-tags" style="margin-top: 10px;">
-                        <span class="tag ${rangeClass}">${inRange ? 'In Range' : 'Out of Range'}</span>
-                        ${!inRange ? `<span class="tag loss">OOR ${p.minutes_out_of_range ? formatDuration(p.minutes_out_of_range) : ''}</span>` : ''}
+                        <span class="tag ${rangeClass}">${inRange ? '✓ In Range' : '⚠ Out of Range'}</span>
+                        <span class="tag strategy">${totalBins} bins</span>
+                        ${(p.pnl?.unclaimed_fee_usd || 0) > 0 ? `<span class="tag profit">Claim $${(p.pnl.unclaimed_fee_usd || 0).toFixed(2)}</span>` : ''}
                         ${(p.unclaimed_fees_usd || 0) > 0 ? `<span class="tag profit">Claim $${(p.unclaimed_fees_usd || 0).toFixed(2)}</span>` : ''}
                     </div>
                     <div style="margin-top: 10px; font-size: 10px; color: var(--text-muted);">
@@ -1207,6 +1258,12 @@
             document.getElementById('winCount').textContent = `${wins} wins / ${allPerformance.length} total`;
 
             const avgEl = document.getElementById('avgPnlPct');
+
+            // Update open positions count
+            const openPosCount = openPositions.length;
+            const openPosValue = openPositions.reduce((s, p) => s + (p.pnl?.current_value_usd || p.total_value_usd || 0), 0);
+            document.getElementById('openPositions').textContent = openPosCount;
+            document.getElementById('positionsValue').textContent = `$${openPosValue.toFixed(2)} total`;
             avgEl.textContent = `${avgPnlPct >= 0 ? '+' : ''}${avgPnlPct.toFixed(2)}%`;
             avgEl.className = `stat-value ${avgPnlPct >= 0 ? 'positive' : 'negative'}`;
             document.getElementById('totalClosed').textContent = `${allPerformance.length} closed`;

@@ -1718,33 +1718,41 @@
             container.innerHTML = poolKeys.map(addr => {
                 const pool = allPools[addr];
                 const winClass = (pool.win_rate || 0) >= 0.5 ? 'positive' : 'negative';
+                const totalPnl = (pool.total_pnl_usd || 0);
+                const pnlClass = totalPnl >= 0 ? 'positive' : 'negative';
+                const wr = ((pool.win_rate || 0) * 100).toFixed(0);
+                const avgPnl = pool.avg_pnl_pct || 0;
+                const htmlId = 'pm-pool-' + addr.slice(0, 8);
+                
+                const deploysHtml = (pool.deploys || []).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)).map(d => {
+                    const date = new Date(d.closed_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                    const pnlC = (d.pnl_usd || 0) >= 0 ? 'positive' : 'negative';
+                    return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 13px;">
+                        <span style="color: var(--text-muted);">${date}</span>
+                        <span class="${pnlC}">${(d.pnl_usd || 0) >= 0 ? '+' : ''}$${(d.pnl_usd || 0).toFixed(2)} (${(d.pnl_pct || 0) >= 0 ? '+' : ''}${(d.pnl_pct || 0).toFixed(2)}%)</span>
+                    </div>`;
+                }).join('');
+                
                 return `
-                    <div class="journal-item" style="margin-bottom: 12px;">
-                        <div class="journal-header">
+                    <div class="pool-group" style="margin: 12px 0; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                        <div onclick="togglePoolGroup('${htmlId}')" style="cursor: pointer; padding: 14px; background: var(--bg-card); display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <div class="journal-pool">${pool.name || addr.slice(0, 8)}</div>
-                                <div class="journal-date">${pool.total_deploys} deploy(s)</div>
+                                <div style="font-weight: 700; font-size: 15px; color: var(--accent-teal);">${pool.name || addr.slice(0, 8)}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                                    ${pool.total_deploys} deploy(s) | ${wr}% WR | ${avgPnl >= 0 ? '+' : ''}${avgPnl.toFixed(2)}% avg
+                                </div>
+                                ${pool.notes?.length > 0 ? `
+                                    <div style="font-size: 11px; color: var(--accent-yellow); margin-top: 4px;">📝 ${pool.notes[pool.notes.length - 1].note}</div>
+                                ` : ''}
                             </div>
-                            <div style="text-align: right;">
-                                <div class="metric-value ${winClass}">${((pool.win_rate || 0) * 100).toFixed(0)}% WR</div>
-                                <div class="metric-value ${(pool.avg_pnl_pct || 0) >= 0 ? 'positive' : 'negative'}">${(pool.avg_pnl_pct || 0) >= 0 ? '+' : ''}${pool.avg_pnl_pct || 0}% avg</div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span class="metric-value ${pnlClass}" style="font-size: 18px;">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span>
+                                <span class="toggle-icon" id="${htmlId}-icon" style="font-size: 12px;">▼</span>
                             </div>
                         </div>
-                        ${pool.notes?.length > 0 ? `
-                            <div style="margin-top: 8px; padding: 8px; background: var(--bg-primary); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Latest Note:</div>
-                                <div style="font-size: 12px;">${pool.notes[pool.notes.length - 1].note}</div>
-                            </div>
-                        ` : ''}
-                        ${pool.deploys?.length > 0 ? `
-                            <div class="journal-tags" style="margin-top: 10px;">
-                                ${pool.deploys.slice(-3).map(d => `
-                                    <span class="tag ${(d.pnl_pct || 0) >= 0 ? 'profit' : 'loss'}">
-                                        ${new Date(d.closed_at).toLocaleDateString()}: ${(d.pnl_pct || 0) >= 0 ? '+' : ''}${d.pnl_pct || 0}%
-                                    </span>
-                                `).join('')}
-                            </div>
-                        ` : ''}
+                        <div id="${htmlId}" style="display: none; padding: 0 14px 14px; background: var(--bg-secondary);">
+                            ${deploysHtml}
+                        </div>
                     </div>
                 `;
             }).join('');

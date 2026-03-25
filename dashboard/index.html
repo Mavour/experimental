@@ -1064,6 +1064,17 @@
                 const positionsData = positionsRes.ok ? await positionsRes.json() : {};
                 openPositions = positionsData.positions || [];
 
+                // Directly update positions count in header - this is reliable
+                const posCountEl = document.getElementById('openPositions');
+                const posValueEl = document.getElementById('positionsValue');
+                const posTotalEl = document.getElementById('activePosCount');
+                if (posCountEl) posCountEl.textContent = openPositions.length;
+                if (posTotalEl) posTotalEl.textContent = openPositions.length;
+                if (posValueEl) {
+                    const totalVal = openPositions.reduce((s, p) => s + (p.total_value_usd || 0), 0);
+                    posValueEl.textContent = `$${totalVal.toFixed(2)} total`;
+                }
+
                 renderStats();
                 renderJournal();
                 renderLessons();
@@ -1238,7 +1249,6 @@
             const countStatsEl = document.getElementById('openPositions');
             const valueStatsEl = document.getElementById('positionsValue');
 
-            console.log('renderPositions called, openPositions:', openPositions.length);
             if (countEl) countEl.textContent = openPositions.length;
             if (countStatsEl) countStatsEl.textContent = openPositions.length;
             

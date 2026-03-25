@@ -464,24 +464,6 @@ function appendHistory(userMsg, assistantMsg) {
 // Register restarter — when update_config changes intervals, running cron jobs get replaced
 registerCronRestarter(() => { if (cronStarted) startCronJobs(); });
 
-  // Start Telegram polling
-  startPolling(async (text) => {
-    if (_managementBusy || _screeningBusy || busy) {
-      sendMessage("Agent is busy right now — try again in a moment.").catch(() => {});
-      return;
-    }
-    busy = true;
-    try {
-      const { content } = await agentLoop(text, config.llm.maxSteps, sessionHistory, "GENERAL", config.llm.generalModel);
-      appendHistory(text, content);
-      await sendMessage(content);
-    } catch (e) {
-      await sendMessage("Error: " + e.message).catch(() => {});
-    } finally {
-      busy = false;
-    }
-  });
-
 if (isTTY) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -857,24 +839,6 @@ Focus on: hold duration, entry/exit timing, what win rates look like, whether sc
   // Non-TTY: start immediately
   log("startup", "Non-TTY mode — starting cron cycles immediately.");
   startCronJobs();
-
-  // Start Telegram polling
-  startPolling(async (text) => {
-    if (_managementBusy || _screeningBusy || busy) {
-      sendMessage("Agent is busy right now — try again in a moment.").catch(() => {});
-      return;
-    }
-    busy = true;
-    try {
-      const { content } = await agentLoop(text, config.llm.maxSteps, sessionHistory, "GENERAL", config.llm.generalModel);
-      appendHistory(text, content);
-      await sendMessage(content);
-    } catch (e) {
-      await sendMessage("Error: " + e.message).catch(() => {});
-    } finally {
-      busy = false;
-    }
-  });
   maybeRunMissedBriefing().catch(() => {});
   (async () => {
     try {

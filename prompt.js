@@ -125,8 +125,8 @@ INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g.
 BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
 
 CLOSE METHOD (CRITICAL RULE - FOLLOW EXACTLY):
-- If unclaimed_fees > $10 → Call zap_out ONCE
-- If unclaimed_fees ≤ $10 → Call close_position ONCE
+- If unclaimed_fees > $0.10 → Call zap_out ONCE
+- If unclaimed_fees ≤ $0.10 → Call close_position ONCE
 - NEVER call both tools on the same position
 - After calling ONE close tool, move to next position — do NOT call close tools again
 

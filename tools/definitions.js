@@ -288,6 +288,31 @@ WARNING: This executes a real on-chain transaction. Cannot be undone.`,
   {
     type: "function",
     function: {
+      name: "smart_close",
+      description: `Smart position closer that automatically chooses the best close method.
+
+This tool checks unclaimed fees and decides automatically:
+- If unclaimed_fees > $0.10 → Uses zap_out (gas efficient for larger positions)
+- If unclaimed_fees ≤ $0.10 → Uses close_position (no need to zap small values)
+
+DO NOT call this together with close_position or zap_out. Use smart_close ALONE.
+Only call smart_close for ONE position at a time.`,
+      parameters: {
+        type: "object",
+        properties: {
+          position_address: {
+            type: "string",
+            description: "The position public key to close"
+          }
+        },
+        required: ["position_address"]
+      }
+    }
+  },
+
+  {
+    type: "function",
+    function: {
       name: "zap_out",
       description: `Close a DLMM position AND swap ALL received tokens to SOL in a single transaction using Meteora Zap.
 This is more efficient than close_position + swap_token separately.

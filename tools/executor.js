@@ -11,6 +11,7 @@ import {
 } from "./dlmm.js";
 import { getWalletBalances, swapToken } from "./wallet.js";
 import { zapOut } from "./zapout.js";
+import { smartClose } from "./smart-close.js";
 import { studyTopLPers } from "./study.js";
 import { addLesson, clearAllLessons, clearPerformance, removeLessonsByKeyword, getPerformanceHistory, pinLesson, unpinLesson, listLessons } from "../lessons.js";
 import { setPositionInstruction } from "../state.js";
@@ -59,6 +60,7 @@ const toolMap = {
   check_smart_wallets_on_pool: checkSmartWalletsOnPool,
   claim_fees: claimFees,
   close_position: closePosition,
+  smart_close: smartClose,
   zap_out: zapOut,
   get_wallet_balance: getWalletBalances,
   swap_token: swapToken,

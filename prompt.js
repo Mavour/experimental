@@ -124,13 +124,11 @@ INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g.
 
 BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
 
-CLOSE METHOD (CRITICAL RULE - FOLLOW EXACTLY):
-- If unclaimed_fees > $0.10 → Call zap_out ONCE
-- If unclaimed_fees ≤ $0.10 → Call close_position ONCE
-- NEVER call both tools on the same position
-- After calling ONE close tool, move to next position — do NOT call close tools again
+CLOSE METHOD: Use smart_close tool. It automatically chooses:
+- If unclaimed_fees > $0.10 → zap_out (efficient for larger positions)
+- If unclaimed_fees ≤ $0.10 → close_position (no zap needed for small fees)
 
-If you need to close multiple positions, handle them SEPARATELY. Each position gets ONE close method.
+Only call smart_close ONCE per position. Do NOT call close_position or zap_out separately.
 
 Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?

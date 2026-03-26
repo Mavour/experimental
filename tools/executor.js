@@ -28,6 +28,9 @@ import { execSync, spawn } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const USER_CONFIG_PATH = path.join(__dirname, "../user-config.json");
+
+// Track recently closed positions to prevent double-close with zap_out
+const recentlyClosed = new Set();
 import { log, logAction } from "../logger.js";
 import { notifyDeploy, notifyClose, notifySwap } from "../telegram.js";
 import { notifyDeploy as dashNotifyDeploy, notifyClose as dashNotifyClose, notifySwap as dashNotifySwap, notifyLesson } from "../dashboard-notifier.js";
@@ -288,10 +291,22 @@ export async function executeTool(name, args) {
         notifyDeploy({ pair: deployData.pool_name, amountSol: deployData.amount_sol, position: deployData.position, tx: result.txs?.[0] ?? result.tx, priceRange: deployData.bin_range, binStep: result.bin_step, baseFee: result.base_fee }).catch(() => {});
         dashNotifyDeploy(deployData).catch(() => {});
       } else if (name === "zap_out") {
+        // Block zap_out if position was recently closed
+        if (recentlyClosed.has(args.position_address)) {
+          log("zapout_blocked", `Position ${args.position_address?.slice(0, 8)} was just closed, blocking zap_out`);
+          return { success: false, error: "Position was already closed, cannot zap_out", position: args.position_address };
+        }
         if (result.success) {
           log("executor", `Zap out successful: ${result.tx}`);
+          recentlyClosed.add(args.position_address);
+          setTimeout(() => recentlyClosed.delete(args.position_address), 5 * 60 * 1000);
         }
       } else if (name === "close_position") {
+        // Track position as recently closed
+        if (result.success) {
+          recentlyClosed.add(args.position_address);
+          setTimeout(() => recentlyClosed.delete(args.position_address), 5 * 60 * 1000);
+        }
         const closeData = { pool_name: result.pool_name || args.position_address?.slice(0, 8), position: args.position_address, strategy: result.strategy };
         notifyClose({ pair: closeData.pool_name, pnlUsd: result.pnl_usd ?? 0, pnlPct: result.pnl_pct ?? 0 }).catch(() => {});
         dashNotifyClose(closeData, { pnl_usd: result.pnl_usd ?? 0, pnl_pct: result.pnl_pct ?? 0, fees_earned_usd: result.fees_earned_usd ?? 0, close_reason: result.close_reason }).catch(() => {});

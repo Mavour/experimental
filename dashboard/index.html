@@ -143,10 +143,6 @@
         .stat-value.positive { color: var(--accent-green); }
         .pnl-toggle { cursor: pointer; color: var(--accent-teal); font-size: 11px; }
         .pnl-toggle:hover { text-decoration: underline; }
-        .pnl-toggle-bar { display: flex; gap: 4px; margin-bottom: 8px; }
-        .pnl-btn { flex: 1; padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
-        .pnl-btn.active { background: var(--accent-teal); color: var(--bg-primary); border-color: var(--accent-teal); font-weight: 600; }
-        .pnl-btn:hover:not(.active) { background: var(--bg-hover); }
         .stat-value.negative { color: var(--accent-red); }
         .stat-value.neutral { 
             background: var(--teal-gradient);
@@ -730,12 +726,7 @@
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">Total P&L</div>
-                <div class="pnl-toggle-bar">
-                    <button class="pnl-btn ${pnlMode === 'usd' ? 'active' : ''}" onclick="setPnlMode('usd')">USD</button>
-                    <button class="pnl-btn ${pnlMode === 'sol' ? 'active' : ''}" onclick="setPnlMode('sol')">SOL</button>
-                </div>
                 <div class="stat-value" id="totalPnl">--</div>
-                <div class="stat-value" id="totalPnlSol" style="display:none">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Win Rate</div>
@@ -908,7 +899,6 @@
         let wsConnected = false;
         let reconnectAttempts = 0;
         const MAX_RECONNECT = 5;
-        let pnlMode = 'usd'; // 'usd' or 'sol'
 
         function updateConnectionStatus(connected) {
             wsConnected = connected;
@@ -917,14 +907,6 @@
                 statusEl.textContent = connected ? '🟢 Live' : '🔴 Reconnecting...';
                 statusEl.style.color = connected ? 'var(--accent-green)' : 'var(--accent-red)';
             }
-        }
-
-        function setPnlMode(mode) {
-            pnlMode = mode;
-            document.querySelectorAll('.pnl-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.toLowerCase() === mode);
-            });
-            renderStats();
         }
 
         function connectWebSocket() {
@@ -1491,18 +1473,9 @@
                 : 0;
             const wins = allPerformance.filter(p => (p.pnl_usd || 0) > 0).length;
             const winRate = allPerformance.length > 0 ? (wins / allPerformance.length) * 100 : 0;
-            const pnlSol = solPrice > 0 ? totalPnl / solPrice : 0;
 
             const pnlEl = document.getElementById('totalPnl');
-            const pnlSolEl = document.getElementById('totalPnlSol');
-            if (pnlMode === 'sol') {
-                pnlEl.style.display = 'none';
-                pnlSolEl.style.display = 'block';
-                pnlSolEl.textContent = `${pnlSol >= 0 ? '+' : ''}${pnlSol.toFixed(4)} SOL`;
-                pnlSolEl.className = `stat-value ${pnlSol >= 0 ? 'positive' : 'negative'}`;
-            } else {
-                pnlEl.style.display = 'block';
-                pnlSolEl.style.display = 'none';
+            if (pnlEl) {
                 pnlEl.textContent = `$${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}`;
                 pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
             }

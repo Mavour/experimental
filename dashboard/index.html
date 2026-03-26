@@ -735,6 +735,7 @@
                     <button class="pnl-btn ${pnlMode === 'sol' ? 'active' : ''}" onclick="setPnlMode('sol')">SOL</button>
                 </div>
                 <div class="stat-value" id="totalPnl">--</div>
+                <div class="stat-value" id="totalPnlSol" style="display:none">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Win Rate</div>
@@ -975,7 +976,7 @@
                         renderWallet();
                     }
                     if (msg.data.positions) {
-                        openPositions = msg.data.positions;
+                        openPositions = Array.isArray(msg.data.positions) ? msg.data.positions : [];
                         renderPositions();
                         renderStats();
                     }
@@ -1498,7 +1499,7 @@
                 pnlEl.style.display = 'none';
                 pnlSolEl.style.display = 'block';
                 pnlSolEl.textContent = `${pnlSol >= 0 ? '+' : ''}${pnlSol.toFixed(4)} SOL`;
-                pnlSolEl.className = `sol-price ${pnlSol >= 0 ? 'positive' : 'negative'}`;
+                pnlSolEl.className = `stat-value ${pnlSol >= 0 ? 'positive' : 'negative'}`;
             } else {
                 pnlEl.style.display = 'block';
                 pnlSolEl.style.display = 'none';

@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, sendAndConfirmTransaction } from "@solana/web3.js";
 import { log } from "../logger.js";
 import { getMyPositions, getWallet, getConnection } from "./dlmm.js";
 import { getPoolDetail } from "./screening.js";
@@ -54,8 +54,7 @@ export async function zapOut({ position_address, output_mint = SOL_MINT }) {
         zapOutTx.recentBlockhash = blockhash;
         zapOutTx.feePayer = user.publicKey;
 
-        const signedTx = await user.signTransaction(zapOutTx);
-        const txHash = await connection.sendRawTransaction(signedTx.serialize());
+        const txHash = await sendAndConfirmTransaction(connection, zapOutTx, [user]);
 
         log("zapout", `Zap out successful: ${txHash}`);
 

@@ -1784,10 +1784,11 @@
                     const dt = new Date(d.closed_at);
                     const date = dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
                     const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                    const pnlC = (d.pnl_usd || 0) >= 0 ? 'positive' : 'negative';
+                    const isProfit = (d.pnl_usd || 0) >= 0;
+                    const color = isProfit ? 'var(--accent-green)' : 'var(--accent-red)';
                     return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 13px;">
                         <span style="color: var(--text-muted);">${date} ${time}</span>
-                        <span class="${pnlC}">${(d.pnl_usd || 0) >= 0 ? '+' : ''}$${(d.pnl_usd || 0).toFixed(2)} (${(d.pnl_pct || 0) >= 0 ? '+' : ''}${(d.pnl_pct || 0).toFixed(2)}%)</span>
+                        <span style="color: ${color}; font-weight: 600;">${isProfit ? '+' : ''}$${(d.pnl_usd || 0).toFixed(2)} (${isProfit ? '+' : ''}${(d.pnl_pct || 0).toFixed(2)}%)</span>
                     </div>`;
                 }).join('');
                 

@@ -1308,8 +1308,13 @@
                             </div>
                         </div>
                         <div style="text-align: right;">
-                            <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl?.pnl_usd || p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl?.pnl_usd || p.pnl_usd || 0).toFixed(2)}</div>
-                            <div class="metric-value ${pnlPctClass}">${(p.pnl?.pnl_pct || p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl?.pnl_pct || p.pnl_pct || 0).toFixed(2)}%</div>
+                            ${pnlMode === 'sol' ? `
+                                <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl?.pnl_sol || p.pnl_sol || 0) >= 0 ? '+' : ''}${(p.pnl?.pnl_sol || p.pnl_sol || 0).toFixed(4)} SOL</div>
+                                <div class="metric-value ${pnlPctClass}">${(p.pnl?.pnl_sol_pct || p.pnl_sol_pct || 0) >= 0 ? '+' : ''}${(p.pnl?.pnl_sol_pct || p.pnl_sol_pct || 0).toFixed(2)}%</div>
+                            ` : `
+                                <div class="metric-value ${pnlClass}" style="font-size: 16px;">${(p.pnl?.pnl_usd || p.pnl_usd || 0) >= 0 ? '+' : ''}$${(p.pnl?.pnl_usd || p.pnl_usd || 0).toFixed(2)}</div>
+                                <div class="metric-value ${pnlPctClass}">${(p.pnl?.pnl_pct || p.pnl_pct || 0) >= 0 ? '+' : ''}${(p.pnl?.pnl_pct || p.pnl_pct || 0).toFixed(2)}%</div>
+                            `}
                         </div>
                     </div>
                     

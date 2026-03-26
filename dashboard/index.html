@@ -141,6 +141,10 @@
         }
 
         .stat-value.positive { color: var(--accent-green); }
+        .pnl-toggle { cursor: pointer; color: var(--accent-teal); font-size: 11px; }
+        .pnl-toggle:hover { text-decoration: underline; }
+        .sol-price.positive { color: var(--accent-green); }
+        .sol-price.negative { color: var(--accent-red); }
         .stat-value.negative { color: var(--accent-red); }
         .stat-value.neutral { 
             background: var(--teal-gradient);
@@ -723,9 +727,9 @@
     <main class="container">
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Total P&L</div>
+                <div class="stat-label">Total P&L <span class="pnl-toggle" onclick="togglePnlMode()" title="Toggle USD/SOL">(<span id="pnlModeLabel">USD</span>)</span></div>
                 <div class="stat-value" id="totalPnl">--</div>
-                <div class="sol-price" id="totalPnlSol">-- SOL</div>
+                <div class="sol-price" id="totalPnlSol" style="display:none">-- SOL</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Win Rate</div>
@@ -898,6 +902,7 @@
         let wsConnected = false;
         let reconnectAttempts = 0;
         const MAX_RECONNECT = 5;
+        let pnlMode = 'usd'; // 'usd' or 'sol'
 
         function updateConnectionStatus(connected) {
             wsConnected = connected;
@@ -906,6 +911,12 @@
                 statusEl.textContent = connected ? '🟢 Live' : '🔴 Reconnecting...';
                 statusEl.style.color = connected ? 'var(--accent-green)' : 'var(--accent-red)';
             }
+        }
+
+        function togglePnlMode() {
+            pnlMode = pnlMode === 'usd' ? 'sol' : 'usd';
+            document.getElementById('pnlModeLabel').textContent = pnlMode.toUpperCase();
+            renderStats();
         }
 
         function connectWebSocket() {
@@ -1470,9 +1481,18 @@
             const pnlSol = solPrice > 0 ? totalPnl / solPrice : 0;
 
             const pnlEl = document.getElementById('totalPnl');
-            pnlEl.textContent = `$${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}`;
-            pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
-            document.getElementById('totalPnlSol').textContent = `${pnlSol >= 0 ? '+' : ''}${pnlSol.toFixed(4)} SOL`;
+            const pnlSolEl = document.getElementById('totalPnlSol');
+            if (pnlMode === 'sol') {
+                pnlEl.style.display = 'none';
+                pnlSolEl.style.display = 'block';
+                pnlSolEl.textContent = `${pnlSol >= 0 ? '+' : ''}${pnlSol.toFixed(4)} SOL`;
+                pnlSolEl.className = `sol-price ${pnlSol >= 0 ? 'positive' : 'negative'}`;
+            } else {
+                pnlEl.style.display = 'block';
+                pnlSolEl.style.display = 'none';
+                pnlEl.textContent = `$${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}`;
+                pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+            }
 
             document.getElementById('winRate').textContent = `${winRate.toFixed(0)}%`;
             document.getElementById('winCount').textContent = `${wins} wins / ${allPerformance.length} total`;

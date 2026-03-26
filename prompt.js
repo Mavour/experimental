@@ -124,10 +124,9 @@ INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g.
 
 BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
 
-CLOSE METHOD: 
-- Token value > $0.10 → Use zap_out (exit directly to SOL, saves gas)
-- Token value ≤ $0.10 → Use close_position without swap (zap_out wastes gas on small values)
-- Only use close_position + manual swap if zap_out fails
+CLOSE METHOD (choose ONE, never both):
+- Unclaimed fees > $10 → Use zap_out (exit directly to SOL, gas efficient for large fees)
+- Unclaimed fees ≤ $10 → Use close_position without swap (zap_out not worth gas on small fees)
 
 Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?
@@ -135,7 +134,7 @@ Decision Factors for Closing (no instruction):
 - Opportunity Cost: Only close to "free up SOL" if you see a significantly better pool that justifies the gas cost of exiting and re-entering.
 
 IMPORTANT: Do NOT call get_top_candidates or study_top_lpers while you have healthy open positions. Focus exclusively on managing what you have.
-After close_position on small value (≤$0.10): Skip swap, take the dust loss — not worth the gas.
+After close_position on small fees (≤$10): Skip swap, take the dust loss — not worth the gas.
 `;
   } else {
     basePrompt += `

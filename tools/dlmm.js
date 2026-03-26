@@ -19,6 +19,7 @@ import {
   syncOpenPositions,
 } from "../state.js";
 import { recordPerformance } from "../lessons.js";
+import { isPoolOnCooldown } from "../pool-memory.js";
 import { normalizeMint } from "./wallet.js";
 
 // ─── Lazy SDK loader ───────────────────────────────────────────
@@ -43,14 +44,14 @@ async function getDLMM() {
 let _connection = null;
 let _wallet = null;
 
-export function getConnection() {
+function getConnection() {
   if (!_connection) {
     _connection = new Connection(process.env.RPC_URL, "confirmed");
   }
   return _connection;
 }
 
-export function getWallet() {
+function getWallet() {
   if (!_wallet) {
     if (!process.env.WALLET_PRIVATE_KEY) {
       throw new Error("WALLET_PRIVATE_KEY not set");
@@ -112,6 +113,11 @@ export async function deployPosition({
 
   const activeBinsBelow = bins_below ?? config.strategy.binsBelow;
   const activeBinsAbove = bins_above ?? 0;
+
+  if (isPoolOnCooldown(pool_address)) {
+    log("deploy", `Pool ${pool_address.slice(0, 8)} is on cooldown (closed for low yield) — skipping`);
+    return { success: false, error: "Pool on cooldown — was recently closed for low yield. Try a different pool." };
+  }
 
   if (process.env.DRY_RUN === "true") {
     const totalBins = activeBinsBelow + activeBinsAbove;
@@ -342,11 +348,10 @@ export async function getPositionPnl({ pool_address, position_address }) {
 }
 
 // ─── Get My Positions ──────────────────────────────────────────
-export async function getMyPositions({ force = false } = {}) {
+export async function getMyPositions({ force = false, silent = false } = {}) {
   if (!force && _positionsCache && Date.now() - _positionsCacheAt < POSITIONS_CACHE_TTL) {
     return _positionsCache;
   }
-  // If a scan is already in progress, wait for it instead of starting another
   if (_positionsInflight) return _positionsInflight;
 
   let walletAddress;
@@ -357,93 +362,70 @@ export async function getMyPositions({ force = false } = {}) {
   }
 
   _positionsInflight = (async () => { try {
-    log("positions", "Scanning positions via getProgramAccounts...");
-    const DLMM_PROGRAM = new PublicKey("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo");
-    const walletPubkey = new PublicKey(walletAddress);
+    // Single portfolio API call — returns all positions with full PnL data
+    if (!silent) log("positions", "Fetching portfolio via Meteora portfolio API...");
+    const portfolioUrl = `https://dlmm.datapi.meteora.ag/portfolio/open?user=${walletAddress}`;
+    const res = await fetch(portfolioUrl);
+    if (!res.ok) throw new Error(`Portfolio API ${res.status}: ${await res.text().catch(() => "")}`);
+    const portfolio = await res.json();
 
-    // Owner field sits at offset 40 (8 discriminator + 32 lb_pair)
-    const accounts = await getConnection().getProgramAccounts(DLMM_PROGRAM, {
-      filters: [{ memcmp: { offset: 40, bytes: walletPubkey.toBase58() } }],
-    });
+    const pools = portfolio.pools || [];
+    log("positions", `Found ${pools.length} pool(s) with open positions`);
 
-    log("positions", `Found ${accounts.length} position account(s)`);
+    // Fetch bin data (lowerBinId, upperBinId, poolActiveBinId) for all pools in parallel
+    // Needed for rules 3 & 4 (active_bin vs upper_bin comparison)
+    const binDataByPool = {};
+    const pnlMaps = await Promise.all(pools.map(pool => fetchDlmmPnlForPool(pool.poolAddress, walletAddress)));
+    pools.forEach((pool, i) => { binDataByPool[pool.poolAddress] = pnlMaps[i]; });
 
-    // Collect raw (pool, position) pairs
-    const raw = [];
-    for (const acc of accounts) {
-      const positionAddress = acc.pubkey.toBase58();
-      const lbPairKey = new PublicKey(acc.account.data.slice(8, 40)).toBase58();
-      // Pair name: use tracked state pool_name if available
-      const tracked = getTrackedPosition(positionAddress);
-      const pair = tracked?.pool_name || lbPairKey.slice(0, 8);
-      raw.push({
-        position: positionAddress,
-        pool: lbPairKey,
-        pair,
-        base_mint: null, // enriched from PnL API below
-        lower_bin: null,
-        upper_bin: null,
-      });
+    const positions = [];
+    for (const pool of pools) {
+      for (const positionAddress of (pool.listPositions || [])) {
+        const tracked = getTrackedPosition(positionAddress);
+        const isOOR = pool.outOfRange || pool.positionsOutOfRange?.includes(positionAddress);
+
+        if (isOOR) markOutOfRange(positionAddress);
+        else markInRange(positionAddress);
+
+        // Bin data: from supplemental PnL call (OOR) or tracked state (in-range)
+        const binData = binDataByPool[pool.poolAddress]?.[positionAddress];
+        const lowerBin  = binData?.lowerBinId      ?? tracked?.bin_range?.min ?? null;
+        const upperBin  = binData?.upperBinId      ?? tracked?.bin_range?.max ?? null;
+        const activeBin = binData?.poolActiveBinId ?? tracked?.bin_range?.active ?? null;
+
+        const ageFromState = tracked?.deployed_at
+          ? Math.floor((Date.now() - new Date(tracked.deployed_at).getTime()) / 60000)
+          : null;
+
+        positions.push({
+          position:           positionAddress,
+          pool:               pool.poolAddress,
+          pair:               tracked?.pool_name || `${pool.tokenX}/${pool.tokenY}`,
+          base_mint:          pool.tokenXMint,
+          lower_bin:          lowerBin,
+          upper_bin:          upperBin,
+          active_bin:         activeBin,
+          in_range:           !isOOR,
+          unclaimed_fees_usd: Math.round(parseFloat(config.management.solMode ? (pool.unclaimedFeesSol || 0) : (pool.unclaimedFees || 0)) * 10000) / 10000,
+          total_value_usd:    Math.round(parseFloat(config.management.solMode ? (pool.balancesSol || 0) : (pool.balances || 0)) * 10000) / 10000,
+          collected_fees_usd: Math.round(parseFloat(config.management.solMode ? (pool.unclaimedFeesSol || 0) : (pool.unclaimedFees || 0)) * 10000) / 10000,
+          pnl_usd:            Math.round(parseFloat(config.management.solMode ? (pool.pnlSol || 0) : (pool.pnl || 0)) * 10000) / 10000,
+          pnl_pct:            Math.round(parseFloat(config.management.solMode ? (pool.pnlSolPctChange || 0) : (pool.pnlPctChange || 0)) * 100) / 100,
+          fee_per_tvl_24h:    Math.round(parseFloat(pool.feePerTvl24h || 0) * 100) / 100,
+          age_minutes:        ageFromState,
+          minutes_out_of_range: minutesOutOfRange(positionAddress),
+          instruction:        tracked?.instruction ?? null,
+        });
+      }
     }
 
-    // Enrich with DLMM PnL API for each unique pool in parallel
-    const uniquePools = [...new Set(raw.map((p) => p.pool))];
-    const pnlMaps = await Promise.all(uniquePools.map((pool) => fetchDlmmPnlForPool(pool, walletAddress)));
-    const pnlByPool = {};
-    uniquePools.forEach((pool, i) => { pnlByPool[pool] = pnlMaps[i]; });
-
-    const positions = raw.map((r) => {
-      const p = pnlByPool[r.pool]?.[r.position] || null;
-
-      const inRange = p ? !p.isOutOfRange : true;
-      if (inRange) markInRange(r.position);
-      else markOutOfRange(r.position);
-
-      const lowerBin  = p?.lowerBinId      ?? r.lower_bin;
-      const upperBin  = p?.upperBinId      ?? r.upper_bin;
-      const activeBin = p?.poolActiveBinId ?? null;
-
-      const unclaimedFees = p ? (parseFloat(p.unrealizedPnl?.unclaimedFeeTokenX?.usd || 0) + parseFloat(p.unrealizedPnl?.unclaimedFeeTokenY?.usd || 0)) : 0;
-      const totalValue    = p ? parseFloat(p.unrealizedPnl?.balances || 0) : 0;
-      const collectedFees = p ? parseFloat(p.allTimeFees?.total?.usd || 0) : 0;
-      const pnlUsd        = p?.pnlUsd       ?? 0;
-      const pnlPct        = p?.pnlPctChange ?? 0;
-
-      const tracked = getTrackedPosition(r.position);
-      const ageFromPnlApi = p?.createdAt
-        ? Math.floor((Date.now() - p.createdAt * 1000) / 60000)
-        : null;
-      const ageFromState = tracked?.deployed_at
-        ? Math.floor((Date.now() - new Date(tracked.deployed_at).getTime()) / 60000)
-        : null;
-      const ageMinutes = Math.max(ageFromPnlApi ?? 0, ageFromState ?? 0) || null;
-
-      return {
-        position: r.position,
-        pool: r.pool,
-        pair: r.pair,
-        base_mint: r.base_mint,
-        lower_bin: lowerBin,
-        upper_bin: upperBin,
-        active_bin: activeBin,
-        in_range: inRange,
-        unclaimed_fees_usd: Math.round(unclaimedFees * 100) / 100,
-        total_value_usd: Math.round(totalValue * 100) / 100,
-        collected_fees_usd: Math.round(collectedFees * 100) / 100,
-        pnl_usd: Math.round(pnlUsd * 100) / 100,
-        pnl_pct: Math.round(pnlPct * 100) / 100,
-        age_minutes: ageMinutes,
-        minutes_out_of_range: minutesOutOfRange(r.position),
-      };
-    });
-
     const result = { wallet: walletAddress, total_positions: positions.length, positions };
-    syncOpenPositions(positions.map((p) => p.position));
+    syncOpenPositions(positions.map(p => p.position));
     _positionsCache = result;
     _positionsCacheAt = Date.now();
     return result;
   } catch (error) {
-    log("positions_error", `SDK scan failed: ${error.stack || error.message}`);
+    log("positions_error", `Portfolio fetch failed: ${error.stack || error.message}`);
     return { wallet: walletAddress, total_positions: 0, positions: [], error: error.message };
   } finally {
     _positionsInflight = null;
@@ -531,6 +513,11 @@ export async function claimFees({ position_address }) {
     return { dry_run: true, would_claim: position_address, message: "DRY RUN — no transaction sent" };
   }
 
+  const tracked = getTrackedPosition(position_address);
+  if (tracked?.closed) {
+    return { success: false, error: "Position already closed — fees were claimed during close" };
+  }
+
   try {
     log("claim", `Claiming fees for position: ${position_address}`);
     const wallet = getWallet();
@@ -572,6 +559,8 @@ export async function closePosition({ position_address }) {
     return { dry_run: true, would_close: position_address, message: "DRY RUN — no transaction sent" };
   }
 
+  const tracked = getTrackedPosition(position_address);
+
   try {
     log("close", `Closing position: ${position_address}`);
     const wallet = getWallet();
@@ -585,19 +574,24 @@ export async function closePosition({ position_address }) {
     const txHashes = [];
 
     // ─── Step 1: Claim Fees (to clear account state) ───────────
+    const recentlyClaimed = tracked?.last_claim_at && (Date.now() - new Date(tracked.last_claim_at).getTime()) < 60_000;
     try {
-      log("close", `Step 1: Claiming fees for ${position_address}`);
-      const positionData = await pool.getPosition(positionPubKey);
-      const claimTxs = await pool.claimSwapFee({
-        owner: wallet.publicKey,
-        position: positionData,
-      });
-      if (claimTxs && claimTxs.length > 0) {
-        for (const tx of claimTxs) {
-          const claimHash = await sendAndConfirmTransaction(getConnection(), tx, [wallet]);
-          txHashes.push(claimHash);
+      if (recentlyClaimed) {
+        log("close", `Step 1: Skipping claim — fees already claimed ${Math.round((Date.now() - new Date(tracked.last_claim_at).getTime()) / 1000)}s ago`);
+      } else {
+        log("close", `Step 1: Claiming fees for ${position_address}`);
+        const positionData = await pool.getPosition(positionPubKey);
+        const claimTxs = await pool.claimSwapFee({
+          owner: wallet.publicKey,
+          position: positionData,
+        });
+        if (claimTxs && claimTxs.length > 0) {
+          for (const tx of claimTxs) {
+            const claimHash = await sendAndConfirmTransaction(getConnection(), tx, [wallet]);
+            txHashes.push(claimHash);
+          }
+          log("close", `Step 1 OK: ${txHashes.join(", ")}`);
         }
-        log("close", `Step 1 OK: ${txHashes.join(", ")}`);
       }
     } catch (e) {
       log("close_warn", `Step 1 (Claim) failed or nothing to claim: ${e.message}`);
@@ -619,10 +613,12 @@ export async function closePosition({ position_address }) {
       txHashes.push(txHash);
     }
     log("close", `SUCCESS txs: ${txHashes.join(", ")}`);
+    // Wait for RPC to reflect withdrawn balances before returning — prevents
+    // agent from seeing zero balance when attempting post-close swap
+    await new Promise(r => setTimeout(r, 5000));
     recordClose(position_address, "agent decision");
 
     // Record performance for learning
-    const tracked = getTrackedPosition(position_address);
     if (tracked) {
       const deployedAt = new Date(tracked.deployed_at).getTime();
       const minutesHeld = Math.floor((Date.now() - deployedAt) / 60000);
@@ -632,33 +628,46 @@ export async function closePosition({ position_address }) {
         minutesOOR = Math.floor((Date.now() - new Date(tracked.out_of_range_since).getTime()) / 60000);
       }
 
-      // Fetch fresh PnL from API before closing — cache might be stale for new positions
+      _positionsCacheAt = 0; // invalidate cache so next cycle re-fetches
+
+      // Fetch closed PnL from API — authoritative source after withdrawal settles
       let pnlUsd = 0;
       let pnlPct = 0;
       let finalValueUsd = 0;
+      let initialUsd = 0;
       let feesUsd = tracked.total_fees_claimed_usd || 0;
       try {
-        const freshPnl = await getPositionPnl({ pool_address: poolAddress, position_address });
-        if (freshPnl) {
-          pnlUsd = freshPnl.pnl_usd ?? 0;
-          pnlPct = freshPnl.pnl_pct ?? 0;
-          finalValueUsd = freshPnl.current_value_usd ?? 0;
-          feesUsd = (freshPnl.all_time_fees_usd ?? 0);
+        const closedUrl = `https://dlmm.datapi.meteora.ag/positions/${poolAddress}/pnl?user=${wallet.publicKey.toString()}&status=closed&pageSize=50&page=1`;
+        const res = await fetch(closedUrl);
+        if (res.ok) {
+          const data = await res.json();
+          const posEntry = (data.positions || []).find(p => p.positionAddress === position_address);
+          if (posEntry) {
+            pnlUsd        = parseFloat(posEntry.pnlUsd || 0);
+            pnlPct        = parseFloat(posEntry.pnlPctChange || 0);
+            finalValueUsd = parseFloat(posEntry.allTimeWithdrawals?.total?.usd || 0);
+            initialUsd    = parseFloat(posEntry.allTimeDeposits?.total?.usd || 0);
+            feesUsd       = parseFloat(posEntry.allTimeFees?.total?.usd || 0) || feesUsd;
+            log("close", `Closed PnL from API: pnl=${pnlUsd.toFixed(2)} USD (${pnlPct.toFixed(2)}%), withdrawn=${finalValueUsd.toFixed(2)}, deposited=${initialUsd.toFixed(2)}`);
+          } else {
+            log("close_warn", `Position not found in status=closed response — may still be settling`);
+          }
         }
       } catch (e) {
-        log("close_warn", `Failed to fetch fresh PnL: ${e.message}`);
-        // Fallback to cached values
+        log("close_warn", `Closed PnL fetch failed: ${e.message}`);
+      }
+      // Fallback to pre-close cache snapshot if closed API had no data
+      if (finalValueUsd === 0) {
         const cachedPos = _positionsCache?.positions?.find(p => p.position === position_address);
         if (cachedPos) {
           pnlUsd        = cachedPos.pnl_usd   ?? 0;
           pnlPct        = cachedPos.pnl_pct   ?? 0;
           finalValueUsd = cachedPos.total_value_usd ?? 0;
           feesUsd       = (cachedPos.collected_fees_usd || 0) + (cachedPos.unclaimed_fees_usd || 0);
+          initialUsd    = tracked.initial_value_usd || (finalValueUsd - pnlUsd) || 0;
+          log("close_warn", `Using pre-close cache snapshot as fallback`);
         }
       }
-
-      _positionsCacheAt = 0; // invalidate cache after snapshotting PnL
-      const initialUsd = tracked.initial_value_usd || 0;
 
       await recordPerformance({
         position: position_address,

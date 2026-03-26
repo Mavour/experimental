@@ -106,7 +106,7 @@ This is an on-chain call via the SDK. Returns:
 - price: human-readable price (token X per token Y)
 - pricePerLamport: raw price in lamports
 
-Always call this before deploying a position to get the freshest price.`,
+Only call this if you need the current price to calculate a specific bin range (e.g. user requested a % range). Do NOT call before every deploy — deploy_position fetches the active bin internally.`,
       parameters: {
         type: "object",
         properties: {
@@ -274,6 +274,10 @@ WARNING: This executes a real on-chain transaction. Cannot be undone.`,
           skip_swap: {
             type: "boolean",
             description: "Set to true if user explicitly wants to hold/keep the base token after closing. Default: false (auto-swaps base token back to SOL)."
+          },
+          reason: {
+            type: "string",
+            description: "Why this position is being closed. Include the rule that triggered it, e.g. 'low yield', 'stop loss', 'trailing TP', 'OOR'. Used for pool memory."
           }
         },
         required: ["position_address"]
@@ -399,7 +403,7 @@ Changes persist to user-config.json and take effect immediately — no restart n
 
 VALID KEYS (use EXACTLY these key names, nothing else):
 Screening: minFeeActiveTvlRatio, minTvl, maxTvl, minVolume, minOrganic, minHolders, minMcap, maxMcap, minBinStep, maxBinStep, timeframe, category, minTokenFeesSol
-Management: minClaimAmount, outOfRangeBinsToClose, outOfRangeWaitMinutes, minVolumeToRebalance, emergencyPriceDropPct, takeProfitFeePct, minSolToOpen, deployAmountSol, gasReserve, positionSizePct
+Management: minClaimAmount, outOfRangeBinsToClose, outOfRangeWaitMinutes, minVolumeToRebalance, stopLossPct, takeProfitFeePct, minSolToOpen, deployAmountSol, gasReserve, positionSizePct
 Risk: maxPositions, maxDeployAmount
 Schedule: managementIntervalMin, screeningIntervalMin
 Models: managementModel, screeningModel, generalModel

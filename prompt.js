@@ -14,6 +14,26 @@ import { config } from "./config.js";
 export function buildSystemPrompt(agentType, portfolio, positions, stateSummary = null, lessons = null, perfSummary = null) {
   const s = config.screening;
 
+  // MANAGER gets a leaner prompt — positions are pre-loaded in the goal, not repeated here
+  if (agentType === "MANAGER") {
+    const portfolioCompact = JSON.stringify(portfolio);
+    const mgmtConfig = JSON.stringify(config.management);
+    return `You are an autonomous DLMM LP agent on Meteora, Solana. Role: MANAGER
+
+This is a mechanical rule-application task. All position data is pre-loaded. Apply the close/claim rules directly and output the report. No extended analysis or deliberation required.
+
+Portfolio: ${portfolioCompact}
+Management Config: ${mgmtConfig}
+
+BEHAVIORAL CORE:
+1. PATIENCE IS PROFIT: Avoid closing positions for tiny gains/losses.
+2. GAS EFFICIENCY: close_position costs gas — only close for clear reasons. After close, swap_token is MANDATORY for any token worth >= $0.10 (dust < $0.10 = skip). Always check token USD value before swapping.
+3. DATA-DRIVEN AUTONOMY: You have full autonomy. Guidelines are heuristics.
+
+${lessons ? `LESSONS LEARNED:\n${lessons}\n` : ""}Timestamp: ${new Date().toISOString()}
+`;
+  }
+
   let basePrompt = `You are an autonomous DLMM LP (Liquidity Provider) agent operating on Meteora, Solana.
 Role: ${agentType || "GENERAL"}
 
@@ -68,28 +88,33 @@ Current screening timeframe: ${config.screening.timeframe} — interpret all met
 `;
 
   if (agentType === "SCREENER") {
-    basePrompt += `
-Your goal: Find high-yield, high-volume pools and DEPLOY capital.
+    return `You are an autonomous DLMM LP agent on Meteora, Solana. Role: SCREENER
 
-1. SCREEN: Use get_top_candidates or discover_pools.
-2. STUDY: Call study_top_lpers. Look for high win rates and sustainable volume.
-3. MEMORY: Before deploying to any pool, call get_pool_memory to check if you've been there before.
-4. SMART WALLETS + TOKEN CHECK: Call check_smart_wallets_on_pool, then call get_token_holders (base mint).
-   - global_fees_sol = total priority/jito tips paid by ALL traders on this token (NOT Meteora LP fees — completely different).
-   - HARD SKIP if global_fees_sol < minTokenFeesSol (default 30 SOL). Low fees = bundled txs or scam. No exceptions.
-   - Smart wallets present + fees pass → strong signal, proceed to deploy.
-   - No smart wallets → also call get_token_narrative before deciding:
-     * SKIP if top_10_real_holders_pct > 60% OR bundlers > 30% OR narrative is empty/null/pure hype with no specific story
-     * CAUTION if bundlers 15–30% AND top_10 > 40% — check organic + buy/sell pressure
-     * Bundlers 5–15% are normal, not a skip signal on their own
-     * GOOD narrative: specific origin (real event, viral moment, named entity, active community actions)
-     * BAD narrative: generic hype ("next 100x", "community token") with no identifiable subject or story
-     * DEPLOY if global_fees_sol passes, distribution is healthy, and narrative has a real specific catalyst
-5. DEPLOY: get_active_bin then deploy_position.
-   - HARD RULE: Minimum 0.1 SOL absolute floor (prefer 0.5+).
-   - HARD RULE: Bin steps must be [80-125].
-   - COMPOUNDING: Deploy amount is computed from wallet size — larger wallet = larger position. Use the amount provided in the cycle goal, do NOT default to a smaller fixed number.
-   - Focus on one high-conviction deployment per cycle.
+All candidates are pre-loaded. Your job: pick the highest-conviction candidate and call deploy_position. active_bin is pre-fetched.
+
+HARD RULE (no exceptions):
+- fees_sol < ${config.screening.minTokenFeesSol} → SKIP. Low fees = bundled/scam. Smart wallets do NOT override this.
+
+RISK SIGNALS (guidelines — use judgment):
+- top10 > 60% → concentrated, risky
+- bots > 30% → suspicious distribution
+- bots 5–25% → normal, ignore
+- no narrative + no smart wallets → skip
+
+NARRATIVE QUALITY (your main judgment call):
+- GOOD: specific origin — real event, viral moment, named entity, active community
+- BAD: generic hype ("next 100x", "community token") with no identifiable subject
+- Smart wallets present → override weak narrative, deploy anyway
+
+POOL MEMORY: Past losses or problems → strong skip signal.
+
+DEPLOY RULES:
+- COMPOUNDING: Use the deploy amount from the goal EXACTLY. Do NOT default to a smaller number.
+- bins_below = round(35 + (volatility/5)*34) clamped to [35,69]. bins_above = 0.
+- Bin steps must be [80-125].
+- Pick ONE pool. Deploy or explain why none qualify.
+
+${lessons ? `LESSONS LEARNED:\n${lessons}\n` : ""}Timestamp: ${new Date().toISOString()}
 `;
   } else if (agentType === "MANAGER") {
     basePrompt += `

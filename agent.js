@@ -49,6 +49,11 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
     { role: "user", content: goal },
   ];
 
+  // Track write tools fired this session — prevent the model from calling the same
+  // destructive tool twice (e.g. deploy twice, swap twice after auto-swap)
+  const ONCE_PER_SESSION = new Set(["deploy_position", "swap_token", "close_position"]);
+  const firedOnce = new Set();
+
   let emptyStreak = 0;
   for (let step = 0; step < maxSteps; step++) {
     log("agent", `Step ${step + 1}/${maxSteps}`);
@@ -117,7 +122,19 @@ export async function agentLoop(goal, maxSteps = config.llm.maxSteps, sessionHis
           functionArgs = {};
         }
 
+        // Block once-per-session tools from firing a second time
+        if (ONCE_PER_SESSION.has(functionName) && firedOnce.has(functionName)) {
+          log("agent", `Blocked duplicate ${functionName} call — already executed this session`);
+          return {
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ blocked: true, reason: `${functionName} already executed this session. Do not call it again.` }),
+          };
+        }
         const result = await executeTool(functionName, functionArgs);
+
+        // Only lock after a successful execution — failures and safety blocks allow retry
+        if (ONCE_PER_SESSION.has(functionName) && result.success === true) firedOnce.add(functionName);
 
         return {
           role: "tool",

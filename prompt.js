@@ -124,9 +124,11 @@ INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g.
 
 BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
 
-CLOSE METHOD (choose ONE, never both):
-- Unclaimed fees > $10 → Use zap_out (exit directly to SOL, gas efficient for large fees)
-- Unclaimed fees ≤ $10 → Use close_position without swap (zap_out not worth gas on small fees)
+CLOSE METHOD (CRITICAL - choose ONE, NEVER call both):
+- Unclaimed fees > $10 → Use zap_out ONLY
+- Unclaimed fees ≤ $10 → Use close_position ONLY
+
+⚠️ AFTER calling close_position OR zap_out, do NOT call the other method on the same position. The position will be closed by the first method.
 
 Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?

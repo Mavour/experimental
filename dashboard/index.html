@@ -958,8 +958,8 @@
                         walletData = msg.data.wallet;
                         renderWallet();
                     }
-                    if (msg.data.positions) {
-                        openPositions = Array.isArray(msg.data.positions) ? msg.data.positions : [];
+                    if (msg.data.positions && Array.isArray(msg.data.positions) && msg.data.positions.length > 0) {
+                        openPositions = msg.data.positions;
                         renderPositions();
                         renderStats();
                     }
@@ -1065,6 +1065,8 @@
                 walletData = walletRes.ok ? await walletRes.json() : {};
                 const positionsData = positionsRes.ok ? await positionsRes.json() : {};
                 openPositions = positionsData.positions || [];
+                
+                console.log('[Dashboard] Loaded positions:', openPositions.length, openPositions.map(p => p.pool_name));
 
                 // Directly update positions count in header - this is reliable
                 const posCountEl = document.getElementById('openPositions');
@@ -1246,30 +1248,40 @@
         }
 
         function renderPositions() {
-            const container = document.getElementById('activePositionsList');
-            const countEl = document.getElementById('activePosCount');
-            const countStatsEl = document.getElementById('openPositions');
-            const valueStatsEl = document.getElementById('positionsValue');
+            console.log('[Dashboard] renderPositions called, openPositions:', openPositions.length);
+            try {
+                const container = document.getElementById('activePositionsList');
+                const countEl = document.getElementById('activePosCount');
+                const countStatsEl = document.getElementById('openPositions');
+                const valueStatsEl = document.getElementById('positionsValue');
 
-            if (countEl) countEl.textContent = openPositions.length;
-            if (countStatsEl) countStatsEl.textContent = openPositions.length;
-            
-            const totalValue = openPositions.reduce((s, p) => s + (p.total_value_usd || 0), 0);
-            const totalPnl = openPositions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
-            valueStatsEl.textContent = `$${totalValue.toFixed(2)} total`;
+                if (countEl) countEl.textContent = openPositions.length;
+                if (countStatsEl) countStatsEl.textContent = openPositions.length;
+                
+                const totalValue = openPositions.reduce((s, p) => s + (p.total_value_usd || 0), 0);
+                const totalPnl = openPositions.reduce((s, p) => s + (p.pnl_usd || 0), 0);
+                if (valueStatsEl) valueStatsEl.textContent = `$${totalValue.toFixed(2)} total`;
 
-            if (openPositions.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📍</div>
-                        <p>No active positions</p>
-                        <p style="font-size: 12px; margin-top: 8px;">Check Candidates tab to deploy</p>
-                    </div>
-                `;
-                return;
+                if (!container) {
+                    console.error('[Dashboard] activePositionsList element not found');
+                    return;
+                }
+
+                if (openPositions.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📍</div>
+                            <p>No active positions</p>
+                            <p style="font-size: 12px; margin-top: 8px;">Check Candidates tab to deploy</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = openPositions.map((p, idx) => renderPositionItem(p, idx + 1)).join('');
+            } catch (e) {
+                console.error('[Dashboard] renderPositions error:', e);
             }
-
-            container.innerHTML = openPositions.map((p, idx) => renderPositionItem(p, idx + 1)).join('');
         }
 
         function renderPositionItem(p, idx) {

@@ -124,11 +124,13 @@ INSTRUCTION CHECK (HIGHEST PRIORITY): If a position has an instruction set (e.g.
 
 BIAS TO HOLD: Unless an instruction fires, a pool is dying, volume has collapsed, or yield has vanished, hold.
 
-CLOSE METHOD (CRITICAL - choose ONE, NEVER call both):
-- Unclaimed fees > $10 → Use zap_out ONLY
-- Unclaimed fees ≤ $10 → Use close_position ONLY
+CLOSE METHOD (CRITICAL RULE - FOLLOW EXACTLY):
+- If unclaimed_fees > $10 → Call zap_out ONCE
+- If unclaimed_fees ≤ $10 → Call close_position ONCE
+- NEVER call both tools on the same position
+- After calling ONE close tool, move to next position — do NOT call close tools again
 
-⚠️ AFTER calling close_position OR zap_out, do NOT call the other method on the same position. The position will be closed by the first method.
+If you need to close multiple positions, handle them SEPARATELY. Each position gets ONE close method.
 
 Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?
@@ -136,7 +138,6 @@ Decision Factors for Closing (no instruction):
 - Opportunity Cost: Only close to "free up SOL" if you see a significantly better pool that justifies the gas cost of exiting and re-entering.
 
 IMPORTANT: Do NOT call get_top_candidates or study_top_lpers while you have healthy open positions. Focus exclusively on managing what you have.
-After close_position on small fees (≤$10): Skip swap, take the dust loss — not worth the gas.
 `;
   } else {
     basePrompt += `

@@ -1752,7 +1752,13 @@
 
         function renderPools() {
             const container = document.getElementById('poolList');
-            const poolKeys = Object.keys(allPools);
+            let poolKeys = Object.keys(allPools);
+            // Sort by most recent deploy (newest first)
+            poolKeys.sort((a, b) => {
+                const dateA = allPools[a]?.last_deployed_at || '';
+                const dateB = allPools[b]?.last_deployed_at || '';
+                return dateB.localeCompare(dateA);
+            });
             document.getElementById('poolCount').textContent = poolKeys.length;
 
             if (poolKeys.length === 0) {

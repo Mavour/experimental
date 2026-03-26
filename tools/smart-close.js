@@ -9,13 +9,13 @@ export async function smartClose({ position_address, min_fee_for_zapout = 0.1 })
     log("smart_close", `Smart close for position ${position_address?.slice(0, 8)}`);
 
     try {
-        // Get position PnL to check unclaimed fees
+        // Get position PnL to check unclaimed fees (tokenY only - the base token)
         const pnl = await getPositionPnl({ position_address });
-        const unclaimedFees = pnl?.unclaimed_fee_usd ?? 0;
+        const unclaimedFeesTokenY = pnl?.unclaimed_fee_tokeny_usd ?? 0;
 
-        log("smart_close", `Unclaimed fees: $${unclaimedFees.toFixed(4)}`);
+        log("smart_close", `TokenY unclaimed fees: $${unclaimedFeesTokenY.toFixed(4)}`);
 
-        if (unclaimedFees > min_fee_for_zapout) {
+        if (unclaimedFeesTokenY > min_fee_for_zapout) {
             log("smart_close", `Fees > $${min_fee_for_zapout} → Using zap_out`);
             const result = await zapOut({ position_address, output_mint: SOL_MINT });
             return {

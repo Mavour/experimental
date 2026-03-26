@@ -130,6 +130,8 @@ CLOSE METHOD: Use smart_close tool. It automatically chooses:
 
 Only call smart_close ONCE per position. Do NOT call close_position or zap_out separately.
 
+SELF-IMPROVEMENT: Before deploying, call analyze_performance to learn from recent mistakes. This helps adjust screening thresholds dynamically.
+
 Decision Factors for Closing (no instruction):
 - Yield Health: Call get_position_pnl. Is the current Fee/TVL still one of the best available?
 - Price Context: Is the token price stabilizing or trending? If it's out of range, will it come back?

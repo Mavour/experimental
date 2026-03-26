@@ -21,6 +21,7 @@ import { addStrategy, listStrategies, getStrategy, setActiveStrategy, removeStra
 import { addToBlacklist, removeFromBlacklist, listBlacklist } from "../token-blacklist.js";
 import { addSmartWallet, removeSmartWallet, listSmartWallets, checkSmartWalletsOnPool } from "../smart-wallets.js";
 import { getTokenInfo, getTokenHolders, getTokenNarrative } from "./token.js";
+import { analyzeRecentPerformance, getDeployRecommendations } from "./reflection.js";
 import { config, reloadScreeningThresholds } from "../config.js";
 import fs from "fs";
 import path from "path";
@@ -129,6 +130,8 @@ const toolMap = {
     }
     return { error: "invalid mode" };
   },
+  analyze_performance: analyzeRecentPerformance,
+  get_deploy_recommendations: getDeployRecommendations,
   update_config: ({ changes, reason = "" }) => {
     // Flat key → config section mapping (covers everything in config.js)
     const CONFIG_MAP = {

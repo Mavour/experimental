@@ -1085,5 +1085,52 @@ Blacklisted tokens are filtered BEFORE the LLM even sees pool candidates.`,
         properties: {}
       }
     }
+  },
+
+  // ─── Performance Reflection ────────────────────────────────────
+
+  {
+    type: "function",
+    function: {
+      name: "analyze_performance",
+      description: `Analyze recent closed positions to identify patterns in wins and losses.
+
+Returns insights about:
+- Volatility thresholds (which vol causes losses)
+- Hold time patterns (how long winners hold vs losers)
+- Organic score requirements
+- Fee/TVL ratios that lead to success/failure
+
+Use this BEFORE making deployment decisions to learn from past performance.`,
+      parameters: {
+        type: "object",
+        properties: {
+          count: {
+            type: "number",
+            description: "How many recent positions to analyze (default: 15)"
+          }
+        }
+      }
+    }
+  },
+
+  {
+    type: "function",
+    function: {
+      name: "get_deploy_recommendations",
+      description: `Get actionable deployment recommendations based on historical performance.
+
+Returns:
+- Recommended max volatility threshold
+- Minimum organic score required
+- Minimum fee/TVL ratio
+- Things to avoid based on past losses
+
+Call this during screening to adjust thresholds dynamically.`,
+      parameters: {
+        type: "object",
+        properties: {}
+      }
+    }
   }
 ];

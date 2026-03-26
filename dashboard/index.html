@@ -143,8 +143,10 @@
         .stat-value.positive { color: var(--accent-green); }
         .pnl-toggle { cursor: pointer; color: var(--accent-teal); font-size: 11px; }
         .pnl-toggle:hover { text-decoration: underline; }
-        .sol-price.positive { color: var(--accent-green); }
-        .sol-price.negative { color: var(--accent-red); }
+        .pnl-toggle-bar { display: flex; gap: 4px; margin-bottom: 8px; }
+        .pnl-btn { flex: 1; padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+        .pnl-btn.active { background: var(--accent-teal); color: var(--bg-primary); border-color: var(--accent-teal); font-weight: 600; }
+        .pnl-btn:hover:not(.active) { background: var(--bg-hover); }
         .stat-value.negative { color: var(--accent-red); }
         .stat-value.neutral { 
             background: var(--teal-gradient);
@@ -727,9 +729,12 @@
     <main class="container">
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Total P&L <span class="pnl-toggle" onclick="togglePnlMode()" title="Toggle USD/SOL">(<span id="pnlModeLabel">USD</span>)</span></div>
+                <div class="stat-label">Total P&L</div>
+                <div class="pnl-toggle-bar">
+                    <button class="pnl-btn ${pnlMode === 'usd' ? 'active' : ''}" onclick="setPnlMode('usd')">USD</button>
+                    <button class="pnl-btn ${pnlMode === 'sol' ? 'active' : ''}" onclick="setPnlMode('sol')">SOL</button>
+                </div>
                 <div class="stat-value" id="totalPnl">--</div>
-                <div class="sol-price" id="totalPnlSol" style="display:none">-- SOL</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Win Rate</div>
@@ -913,9 +918,11 @@
             }
         }
 
-        function togglePnlMode() {
-            pnlMode = pnlMode === 'usd' ? 'sol' : 'usd';
-            document.getElementById('pnlModeLabel').textContent = pnlMode.toUpperCase();
+        function setPnlMode(mode) {
+            pnlMode = mode;
+            document.querySelectorAll('.pnl-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === mode);
+            });
             renderStats();
         }
 

@@ -632,17 +632,29 @@ export async function closePosition({ position_address }) {
         minutesOOR = Math.floor((Date.now() - new Date(tracked.out_of_range_since).getTime()) / 60000);
       }
 
-      // Snapshot PnL from cache BEFORE invalidating — this was the last known state before close
+      // Fetch fresh PnL from API before closing — cache might be stale for new positions
       let pnlUsd = 0;
       let pnlPct = 0;
       let finalValueUsd = 0;
       let feesUsd = tracked.total_fees_claimed_usd || 0;
-      const cachedPos = _positionsCache?.positions?.find(p => p.position === position_address);
-      if (cachedPos) {
-        pnlUsd        = cachedPos.pnl_usd   ?? 0;
-        pnlPct        = cachedPos.pnl_pct   ?? 0;
-        finalValueUsd = cachedPos.total_value_usd ?? 0;
-        feesUsd       = (cachedPos.collected_fees_usd || 0) + (cachedPos.unclaimed_fees_usd || 0);
+      try {
+        const freshPnl = await getPositionPnl({ pool_address: poolAddress, position_address });
+        if (freshPnl) {
+          pnlUsd = freshPnl.pnl_usd ?? 0;
+          pnlPct = freshPnl.pnl_pct ?? 0;
+          finalValueUsd = freshPnl.current_value_usd ?? 0;
+          feesUsd = (freshPnl.all_time_fees_usd ?? 0);
+        }
+      } catch (e) {
+        log("close_warn", `Failed to fetch fresh PnL: ${e.message}`);
+        // Fallback to cached values
+        const cachedPos = _positionsCache?.positions?.find(p => p.position === position_address);
+        if (cachedPos) {
+          pnlUsd        = cachedPos.pnl_usd   ?? 0;
+          pnlPct        = cachedPos.pnl_pct   ?? 0;
+          finalValueUsd = cachedPos.total_value_usd ?? 0;
+          feesUsd       = (cachedPos.collected_fees_usd || 0) + (cachedPos.unclaimed_fees_usd || 0);
+        }
       }
 
       _positionsCacheAt = 0; // invalidate cache after snapshotting PnL
